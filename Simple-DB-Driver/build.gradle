@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+    id 'antlr'
+}
+
+group = 'org.example'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    antlr 'org.antlr:antlr4:4.13.0'
+    implementation 'org.antlr:antlr4-runtime:4.13.0'
+}
+
+generateGrammarSource {
+    arguments += ['-visitor', '-no-listener', '-package', 'parser']
+    outputDirectory = file("build/generated-src/antlr/main/parser")
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java', 'build/generated-src/antlr/main']
+        }
+    }
+}
+
+compileJava.dependsOn generateGrammarSource
