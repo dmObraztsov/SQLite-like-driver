@@ -1,8 +1,8 @@
 grammar Expr;
 
-start : expr EOF ;
+start: expr EOF;
 
-expr : expr op=OR expr            # Con
+expr :             # Con
      | expr op=AND expr             # Dis
      | INT                         # int
      | '(' expr ')'                # parens

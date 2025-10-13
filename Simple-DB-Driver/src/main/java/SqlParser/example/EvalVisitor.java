@@ -1,7 +1,5 @@
 package SqlParser.example;
 
-import SqlParser.ExprBaseVisitor;
-import SqlParser.ExprParser;
 
 public class EvalVisitor extends ExprBaseVisitor<Integer> {
 

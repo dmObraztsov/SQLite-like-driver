@@ -16,8 +16,8 @@ dependencies {
 }
 
 generateGrammarSource {
-    arguments += ['-visitor', '-no-listener', '-package', 'parser']
-    outputDirectory = file("build/generated-src/antlr/main/parser")
+    arguments += ['-visitor', '-no-listener', '-package', 'SqlParser.example`']
+    outputDirectory = file("build/generated-src/antlr/main/SqlParser/example")
 }
 
 sourceSets {
