@@ -3,7 +3,7 @@ plugins {
     id 'antlr'
 }
 
-group = 'org.example'
+group = 'SqlParser.pars'
 version = '1.0-SNAPSHOT'
 
 repositories {
@@ -16,8 +16,8 @@ dependencies {
 }
 
 generateGrammarSource {
-    arguments += ['-visitor', '-no-listener', '-package', 'SqlParser.example`']
-    outputDirectory = file("build/generated-src/antlr/main/SqlParser/example")
+    arguments += ['-visitor', '-no-listener', '-package', 'SqlParser.pars']
+    outputDirectory = file("build/generated-src/antlr/main/SqlParser/pars")
 }
 
 sourceSets {
