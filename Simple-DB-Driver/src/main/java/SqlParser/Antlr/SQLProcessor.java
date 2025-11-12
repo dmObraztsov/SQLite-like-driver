@@ -1,15 +1,14 @@
-package SqlParser.pars;
+package SqlParser.Antlr;
 
+import SqlParser.QueriesStruct.QueryInterface;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 public class SQLProcessor {
-    public static QueryInterface getQuery()
+    public static QueryInterface getQuery(String sql)
     {
-        String sql = "CREATE DATABASE my_database";
-
         CharStream input = CharStreams.fromString(sql);
         SQLLexer lexer = new SQLLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
@@ -19,6 +18,6 @@ public class SQLProcessor {
 
         SQLVisitor<QueryInterface> visitor = new AntlrParser();
 
-        return visitor.visit(tree);
+        return visitor.visit(tree); //TODO parsing errors
     }
 }
