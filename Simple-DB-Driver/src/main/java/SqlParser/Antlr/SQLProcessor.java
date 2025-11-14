@@ -16,6 +16,11 @@ public class SQLProcessor {
 
         ParseTree tree = parser.query();
 
+        if(parser.getNumberOfSyntaxErrors() > 0)
+        {
+            return null;
+        }
+
         SQLVisitor<QueryInterface> visitor = new AntlrParser();
 
         return visitor.visit(tree); //TODO parsing errors

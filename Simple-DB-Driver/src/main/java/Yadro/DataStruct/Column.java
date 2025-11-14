@@ -7,37 +7,18 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public class Column {
     private DataType type;
     private String name;
-    private Constraints constraints;
+    private final ArrayList<Constraints> constraints = new ArrayList<>();
     private Collate collate;
 
     private final ArrayList<Object> data = new ArrayList<>();
 
-    //TODO Constructor handles NULL fields
-
     public Column() {}
 
-    public Column(DataType type, String name, Constraints constraints, Collate collate) {
+    public Column(DataType type, String name, ArrayList<Constraints> constraints, Collate collate) {
         this.type = type;
         this.name = name;
-        this.constraints = constraints;
-        this.collate = collate;
-    }
-
-    public Column(DataType type, String name, Constraints constraints) {
-        this.type = type;
-        this.name = name;
-        this.constraints = constraints;
-    }
-
-    public Column(DataType type, String name, Collate collate) {
-        this.type = type;
-        this.name = name;
-        this.collate = collate;
-    }
-
-    public Column(DataType type, String name) {
-        this.type = type;
-        this.name = name;
+        if(!constraints.isEmpty()) this.constraints.addAll(constraints);
+        if(collate != null) this.collate = collate;
     }
 
     public void addToColumn(Object content) {
@@ -57,7 +38,7 @@ public class Column {
         return name;
     }
 
-    public Constraints getConstraints() {
+    public ArrayList<Constraints> getConstraints() {
         return constraints;
     }
 
@@ -77,8 +58,12 @@ public class Column {
         this.name = name;
     }
 
-    public void setConstraints(Constraints constraints) {
-        this.constraints = constraints;
+    public void setConstraints(Constraints constraint) {
+        this.constraints.add(constraint);
+    }
+
+    public void setConstraints(ArrayList<Constraints> constraints) {
+        this.constraints.addAll(constraints);
     }
 
     public void setCollate(Collate collate) {

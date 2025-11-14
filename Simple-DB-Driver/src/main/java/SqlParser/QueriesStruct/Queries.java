@@ -97,4 +97,24 @@ public class Queries {
             return "Creating table with mame " + "\"" + tableName + "\"";
         }
     }
+
+    public static class DropTableQuery implements QueryInterface
+    {
+        private final String tableName;
+
+        public DropTableQuery(String tableName)
+        {
+            this.tableName = tableName;
+        }
+
+        @Override
+        public boolean execute(FileManager fileManager) {
+            return fileManager.dropTable(tableName);
+        }
+
+        @Override
+        public String getStringVision() {
+            return "Drop table with mame " + "\"" + tableName + "\"";
+        }
+    }
 }

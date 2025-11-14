@@ -15,13 +15,18 @@ public class Main {
 
         while((inputLine = in.nextLine()) != null)
         {
-            QueryInterface currentQuery = SQLProcessor.getQuery(inputLine); //TODO Handle parsing errors
+            QueryInterface currentQuery = SQLProcessor.getQuery(inputLine);
+            if(currentQuery == null)
+            {
+                System.out.println("Syntax error");
+                continue;
+            }
 
             if(fileManager.getNameDB().isEmpty() && !(currentQuery instanceof Queries.CreateDataBaseQuery) &&
                     !(currentQuery instanceof Queries.UseDataBaseQuery) &&
                     !(currentQuery instanceof Queries.DropDataBaseQuery))
             {
-                System.out.println("DataBase is not exits or not connected\n\\In main function");
+                System.out.println("DataBase is not exits or not connected");
                 continue;
             }
 

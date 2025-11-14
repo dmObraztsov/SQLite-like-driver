@@ -3,15 +3,21 @@ grammar SQL;
 query : createDBStatement
       | dropDBStatement
       | useDBStatement
-      | createTableStatement;
+      | createTableStatement
+      | dropTableStatement;
 
-createDBStatement : CREATE DATABASE name;
+createDBStatement : CREATE DATABASE ifNotExists? name;
 dropDBStatement : DROP DATABASE name;
 useDBStatement : USE DATABASE name;
-createTableStatement : CREATE TABLE name '(' column (',' column)* ')';
+createTableStatement : CREATE TABLE ifNotExists? name ('(' column (',' column)* ')')?;
+dropTableStatement : DROP TABLE name;
 
+
+ifNotExists : IF NOT EXISTS; //TODO
+notNull : NOT NULL;
+primaryKey : PRIMARY KEY;
 column : name TYPE constraint*;
-constraint : NOT_NULL | PRIMARY KEY | AUTOINCREMENT | UNIQUE | NULL | CHECK;
+constraint : notNull | primaryKey | AUTOINCREMENT | UNIQUE | NULL | CHECK | DEFAULT;
 name: ID;
 
 CREATE : 'CREATE';
@@ -21,13 +27,16 @@ USE : 'USE';
 DATABASE : 'DATABASE';
 TABLE : 'TABLE';
 
-NOT_NULL : 'NOT' NULL;
+IF : 'IF';
+NOT : 'NOT';
 NULL : 'NULL';
+EXISTS : 'EXISTS';
 PRIMARY : 'PRIMARY';
 KEY : 'KEY';
 AUTOINCREMENT : 'AUTOINCREMENT';
 UNIQUE : 'UNIQUE';
 CHECK : 'CHECK';
+DEFAULT : 'DEFAULT';
 
 TYPE : 'INTEGER' | 'REAL' | 'TEXT' | 'BLOB'; //Null type need to be set?
 

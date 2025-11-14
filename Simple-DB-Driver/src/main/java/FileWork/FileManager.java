@@ -49,7 +49,7 @@ public class FileManager {
         return fileStorage.createDirectory(nameDB + '/' + tableName);
     }
 
-    public boolean deleteTable(String tableName) {
+    public boolean dropTable(String tableName) {
         String path = nameDB + '/' + tableName;
         return fileStorage.deleteDirectory(path);
     }
