@@ -5,5 +5,5 @@ public enum DataType {
     INTEGER,
     REAL,
     TEXT,
-    BLOB //TODO use when move to binary presentation
+    BLOB
 }

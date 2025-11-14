@@ -1,11 +1,15 @@
 package SqlParser.QueriesStruct;
 
 import FileWork.FileManager;
+import Yadro.DataStruct.Column;
 import Yadro.JournalManager;
+
+import java.util.ArrayList;
 
 public class Queries {
 
-    public static class CreateDataBaseQuery implements QueryInterface {
+    public static class CreateDataBaseQuery implements QueryInterface
+    {
         private final String databaseName;
 
         public CreateDataBaseQuery(String databaseName) {
@@ -13,8 +17,8 @@ public class Queries {
         }
 
         @Override
-        public void execute(FileManager fileManager) {
-            fileManager.createDB(databaseName);
+        public boolean execute(FileManager fileManager) {
+            return fileManager.createDB(databaseName);
         }
 
         @Override
@@ -33,8 +37,8 @@ public class Queries {
         }
 
         @Override
-        public void execute(FileManager fileManager) {
-            fileManager.dropDB(databaseName);
+        public boolean execute(FileManager fileManager) {
+            return fileManager.dropDB(databaseName);
         }
 
         @Override
@@ -53,8 +57,8 @@ public class Queries {
         }
 
         @Override
-        public void execute(FileManager fileManager) {
-            fileManager.setNameDB(databaseName);
+        public boolean execute(FileManager fileManager) {
+            return fileManager.setNameDB(databaseName);
         }
 
         @Override
@@ -66,14 +70,26 @@ public class Queries {
     public static class CreateTableQuery implements QueryInterface
     {
         private final String tableName;
+        private final ArrayList<Column> tableColumns = new ArrayList<>();
 
-        public CreateTableQuery(String tableName) {
+        public CreateTableQuery(String tableName, ArrayList<Column> tableColumns) {
             this.tableName = tableName;
+            this.tableColumns.addAll(tableColumns);
         }
 
         @Override
-        public void execute(FileManager fileManager) {
-            fileManager.createTable(tableName);
+        public boolean execute(FileManager fileManager) {
+            boolean flag = fileManager.createTable(tableName);
+            for(Column curr : tableColumns)
+            {
+                flag = fileManager.saveColumn(tableName, curr);
+                if(!flag)
+                {
+                    return flag;
+                }
+            }
+
+            return flag;
         }
 
         @Override
@@ -81,46 +97,4 @@ public class Queries {
             return "Creating table with mame " + "\"" + tableName + "\"";
         }
     }
-//
-//    public static class DropTableQuery implements QueryInterface
-//    {
-//
-//        @Override
-//        public boolean execute() {
-//            return false;
-//        }
-//
-//        @Override
-//        public String getStringVision() {
-//            return "";
-//        }
-//    }
-//
-//    public static class AlterTableQuery implements QueryInterface
-//    {
-//
-//        @Override
-//        public boolean execute() {
-//            return false;
-//        }
-//
-//        @Override
-//        public String getStringVision() {
-//            return "";
-//        }
-//    }
-//
-//    public static class InsertRowQuery implements QueryInterface
-//    {
-//
-//        @Override
-//        public boolean execute() {
-//            return false;
-//        }
-//
-//        @Override
-//        public String getStringVision() {
-//            return "";
-//        }
-//    }
 }

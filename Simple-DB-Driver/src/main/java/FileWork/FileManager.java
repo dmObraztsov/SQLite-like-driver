@@ -2,71 +2,94 @@ package FileWork;
 
 import Yadro.DataStruct.Column;
 
+import java.util.Objects;
+
 public class FileManager {
     private final FileStorage fileStorage;
     private String nameDB;
+    private static final String NO_USE_DB = "";
 
-    public FileManager(FileStorage someStorage, String nameDB)
-    {
-        this.nameDB = nameDB;
-        fileStorage = someStorage;
+    public FileManager(FileStorage someStorage, String nameDB) {
+        if (someStorage == null) {
+            throw new IllegalArgumentException("FileStorage cannot be null");
+        }
+        this.fileStorage = someStorage;
+        setNameDB(nameDB);
     }
 
-    public void createDB(String name)
+    public FileManager(FileStorage someStorage)
     {
-        fileStorage.createDirectory(name); //TODO Hande file errors
+        this(someStorage, NO_USE_DB);
     }
 
-    public void dropDB(String name)
+    public boolean createDB(String name)
     {
-        fileStorage.deleteDirectory(name);
+        return fileStorage.createDirectory(name);
     }
 
-    public void createTable(String tableName)
-    {
-        fileStorage.createDirectory('/' + nameDB + '/' + tableName); //TODO Hande file errors
+    public boolean dropDB(String name) {
+        if (!fileStorage.exists(name)) {
+            System.out.println("Database does not exist: " + name);
+            return false;
+        }
+
+        if (Objects.equals(nameDB, name)) {
+            nameDB = NO_USE_DB;
+        }
+
+        return fileStorage.deleteDirectory(name);
     }
 
-//    public Column loadColumn(String tableName, String columnName)
-//    {
-//        String result;
-//        Column column;
-//        try
-//        {
-//            result = fileStorage.readFile(nameDB + '/' + tableName + '/' + columnName);
-//            //TODO Parse "result" with Jackson
-//            column = new Column();
-//        } catch (Exception e)
-//        {
-//            System.out.println(e.getMessage());
-//        }//TODO Handle file errors
-//
-//        return column
-//    }
-//
-//    public void saveColumn(String tableName, Column column)
-//    {
-//        try
-//        {
-//            fileStorage.createDirectory(nameDB + '/');
-//        } catch () //TODO Handle file errors
-//    }
-//
-    public String getNameDB()
-    {
-        return nameDB;
+    public boolean useDB(String nameDB) {
+        return setNameDB(nameDB);
     }
 
-    public void setNameDB(String nameDB)
+    public boolean createTable(String tableName)
     {
-        if(fileStorage.exists(nameDB))
-        {
+        return fileStorage.createDirectory(nameDB + '/' + tableName);
+    }
+
+    public boolean deleteTable(String tableName) {
+        String path = nameDB + '/' + tableName;
+        return fileStorage.deleteDirectory(path);
+    }
+
+    public Column loadColumn(String tableName, String columnName) {
+        String path = nameDB + '/' + tableName + '/' + columnName;
+        return fileStorage.readFile(path);
+    }
+
+    public boolean saveColumn(String tableName, Column column) {
+        if (column == null) {
+            System.out.println("Column cannot be null");
+            return false;
+        }
+
+        String path = nameDB + '/' + tableName + '/' + column.getName();
+        return fileStorage.writeFile(path, column);
+    }
+
+    public boolean deleteColumn(String tableName, String columnName) {
+        String path = nameDB + '/' + tableName + '/' + columnName;
+        return fileStorage.deleteDirectory(path);
+    }
+
+    public String getNameDB() {
+        return NO_USE_DB.equals(nameDB) ? null : nameDB;
+    }
+
+    public boolean setNameDB(String nameDB) {
+        if (nameDB == null || nameDB.trim().isEmpty()) {
+            this.nameDB = NO_USE_DB;
+            return true;
+        }
+
+        if (fileStorage.exists(nameDB)) {
             this.nameDB = nameDB;
+            return true;
         }
 
-        else
-        {
-            System.out.println("No such Database");
-        }
+        System.out.println("Database does not exist: " + nameDB);
+        return false;
     }
 }

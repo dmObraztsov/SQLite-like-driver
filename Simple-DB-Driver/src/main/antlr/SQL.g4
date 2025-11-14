@@ -8,15 +8,28 @@ query : createDBStatement
 createDBStatement : CREATE DATABASE name;
 dropDBStatement : DROP DATABASE name;
 useDBStatement : USE DATABASE name;
-createTableStatement : CREATE TABLE name;
+createTableStatement : CREATE TABLE name '(' column (',' column)* ')';
 
-CREATE : 'CREATE' ;
-DROP : 'DROP' ;
-USE : 'USE' ;
-DATABASE : 'DATABASE' ;
+column : name TYPE constraint*;
+constraint : NOT_NULL | PRIMARY KEY | AUTOINCREMENT | UNIQUE | NULL | CHECK;
+name: ID;
+
+CREATE : 'CREATE';
+DROP : 'DROP';
+USE : 'USE';
+
+DATABASE : 'DATABASE';
 TABLE : 'TABLE';
 
-name: STRING;
+NOT_NULL : 'NOT' NULL;
+NULL : 'NULL';
+PRIMARY : 'PRIMARY';
+KEY : 'KEY';
+AUTOINCREMENT : 'AUTOINCREMENT';
+UNIQUE : 'UNIQUE';
+CHECK : 'CHECK';
 
-STRING : [a-zA-Z_][a-zA-Z_0-9]* ;
-WS : [ \t\r\n]+ -> skip ;
+TYPE : 'INTEGER' | 'REAL' | 'TEXT' | 'BLOB'; //Null type need to be set?
+
+ID : [a-zA-Z_][a-zA-Z_0-9]*;
+WS : [ \t\r\n]+ -> skip;
