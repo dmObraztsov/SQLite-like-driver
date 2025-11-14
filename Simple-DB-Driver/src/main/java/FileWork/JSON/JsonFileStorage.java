@@ -60,6 +60,8 @@ public class JsonFileStorage implements FileStorage {
         }
     }
 
+
+
     @Override
     public boolean createDirectory(String path) {
         File folder = new File(getFullPath(path));
@@ -91,6 +93,18 @@ public class JsonFileStorage implements FileStorage {
             System.out.println("Failed to delete directory: " + folder.getAbsolutePath());
         }
         return deleted;
+    }
+
+    @Override
+    public boolean renameDirectory(String path, String newName)
+    {
+        File folder = new File(getFullPath(path));
+        if(!folder.exists()) {
+            System.out.println("Directory does not exist: " + folder.getAbsolutePath());
+            return false;
+        }
+
+        return folder.renameTo(new File(getFullPath(newName)));
     }
 
     private boolean deleteFolder(File folder) {

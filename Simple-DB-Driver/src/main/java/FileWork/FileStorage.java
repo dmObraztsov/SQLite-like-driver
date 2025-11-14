@@ -8,4 +8,5 @@ public interface FileStorage {
     boolean writeFile(String path, Column content);
     boolean createDirectory(String path);
     boolean deleteDirectory(String path);
+    boolean renameDirectory(String path, String newName);
 }

@@ -28,11 +28,6 @@ public class FileManager {
     }
 
     public boolean dropDB(String name) {
-        if (!fileStorage.exists(name)) {
-            System.out.println("Database does not exist: " + name);
-            return false;
-        }
-
         if (Objects.equals(nameDB, name)) {
             nameDB = NO_USE_DB;
         }
@@ -54,6 +49,12 @@ public class FileManager {
         return fileStorage.deleteDirectory(path);
     }
 
+    public boolean renameTable(String tableName, String changeTableName)
+    {
+        String path = nameDB + '/' + tableName;
+        return fileStorage.renameDirectory(path, nameDB + '/' + changeTableName);
+    }
+
     public Column loadColumn(String tableName, String columnName) {
         String path = nameDB + '/' + tableName + '/' + columnName;
         return fileStorage.readFile(path);
@@ -72,6 +73,12 @@ public class FileManager {
     public boolean deleteColumn(String tableName, String columnName) {
         String path = nameDB + '/' + tableName + '/' + columnName;
         return fileStorage.deleteDirectory(path);
+    }
+
+    public boolean renameColumn(String tableName, String columnName, String changeColumnName)
+    {
+        String path = nameDB + '/' + tableName + '/' + columnName;
+        return fileStorage.renameDirectory(path, nameDB + '/' + tableName + '/' + changeColumnName);
     }
 
     public String getNameDB() {

@@ -41,29 +41,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         ArrayList<Column> columns = new ArrayList<>();
         for(SQLParser.ColumnContext curr : ctx.column())
         {
-            DataType dataType;
-            ArrayList<Constraints> constraints = new ArrayList<>();
-            Collate collate = null; //TODO
-
-            dataType = switch (curr.TYPE().getText()) {
-                case "INTEGER" -> DataType.INTEGER;
-                case "REAL" -> DataType.REAL;
-                case "TEXT" -> DataType.TEXT;
-                case "BLOB" -> DataType.BLOB;
-                default -> null;
-            };
-
-            for(SQLParser.ConstraintContext currConstraint : curr.constraint())
-            {
-                Constraints constraint = getConstraints(currConstraint);
-
-                if(constraint != null)
-                {
-                    constraints.add(constraint);
-                }
-            }
-
-            columns.add(new Column(dataType, curr.name().getText(), constraints, collate));
+            columns.add(parseColumn(curr));
         }
 
         return new Queries.CreateTableQuery(tableName, columns);
@@ -72,6 +50,34 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     @Override
     public QueryInterface visitDropTableStatement(SQLParser.DropTableStatementContext ctx) {
         return new Queries.DropTableQuery(ctx.name().getText());
+    }
+
+    public QueryInterface visitAlterTableStatement(SQLParser.AlterTableStatementContext ctx) {
+        String tableName = ctx.name().getText();
+        SQLParser.AlterActionContext alterAction = ctx.alterAction();
+
+        if (alterAction.renameTable() != null) {
+            // Обработка RENAME TABLE
+            String newTableName = alterAction.renameTable().name().getText();
+            return new Queries.AlterTableQuery.AlterRenameTableQuery(tableName, newTableName);
+        }
+        else if (alterAction.addColumn() != null) {
+            // Обработка ADD COLUMN
+            SQLParser.ColumnContext columnContext = alterAction.addColumn().column();
+            Column column = parseColumn(columnContext);
+            return new Queries.AlterTableQuery.AlterAddColumnQuery(tableName, column);
+        }
+        else if (alterAction.dropColumn() != null) {
+            // Обработка DROP COLUMN
+            String columnName = alterAction.dropColumn().name().getText();
+            return new Queries.AlterTableQuery.AlterDropColumnQuery(tableName, columnName);
+        }
+        else if (alterAction.renameColumn() != null) {
+            // Обработка RENAME COLUMN
+            String oldColumnName = alterAction.renameColumn().name(0).getText();
+            String newColumnName = alterAction.renameColumn().name(1).getText();
+            return new Queries.AlterTableQuery.AlterRenameColumnQuery(tableName, oldColumnName, newColumnName);
+        }
     }
 
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {
@@ -89,4 +95,26 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         };
         return constraint;
     }
+
+    private Column parseColumn(SQLParser.ColumnContext columnContext) {
+        DataType dataType = switch (columnContext.TYPE().getText()) {
+            case "INTEGER" -> DataType.INTEGER;
+            case "REAL" -> DataType.REAL;
+            case "TEXT" -> DataType.TEXT;
+            case "BLOB" -> DataType.BLOB;
+            default -> null;
+        };
+
+        ArrayList<Constraints> constraints = new ArrayList<>();
+        for (SQLParser.ConstraintContext constraintContext : columnContext.constraint()) {
+            Constraints constraint = getConstraints(constraintContext);
+            if (constraint != null) {
+                constraints.add(constraint);
+            }
+        }
+
+        Collate collate = null; // TODO
+        return new Column(dataType, columnContext.name().getText(), constraints, collate);
+    }
+
 }
