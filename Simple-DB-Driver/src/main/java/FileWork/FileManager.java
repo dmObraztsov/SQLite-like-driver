@@ -75,7 +75,7 @@ public class FileManager {
     }
 
     public String getNameDB() {
-        return NO_USE_DB.equals(nameDB) ? null : nameDB;
+        return nameDB;
     }
 
     public boolean setNameDB(String nameDB) {

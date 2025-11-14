@@ -10,7 +10,7 @@ public class Main {
     public static void main(String[] args)
     {
         Scanner in = new Scanner(System.in); //TODO Handle input errors
-        FileManager fileManager = new FileManager(new JsonFileStorage(), "testDB");
+        FileManager fileManager = new FileManager(new JsonFileStorage());
         String inputLine;
 
         while((inputLine = in.nextLine()) != null)
