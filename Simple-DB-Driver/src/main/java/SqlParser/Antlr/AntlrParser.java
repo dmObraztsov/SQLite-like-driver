@@ -78,6 +78,8 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             String newColumnName = alterAction.renameColumn().name(1).getText();
             return new Queries.AlterTableQuery.AlterRenameColumnQuery(tableName, oldColumnName, newColumnName);
         }
+
+        return new Queries.AlterTableQuery(tableName);
     }
 
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {

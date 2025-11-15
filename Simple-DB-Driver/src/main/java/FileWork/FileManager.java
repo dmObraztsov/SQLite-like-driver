@@ -72,13 +72,16 @@ public class FileManager {
 
     public boolean deleteColumn(String tableName, String columnName) {
         String path = nameDB + '/' + tableName + '/' + columnName;
-        return fileStorage.deleteDirectory(path);
+        return fileStorage.deleteFile(path);
     }
 
     public boolean renameColumn(String tableName, String columnName, String changeColumnName)
     {
         String path = nameDB + '/' + tableName + '/' + columnName;
-        return fileStorage.renameDirectory(path, nameDB + '/' + tableName + '/' + changeColumnName);
+        String newPath = nameDB + '/' + tableName + '/' + changeColumnName;
+        Column toChange = fileStorage.readFile(path);
+        toChange.setName(changeColumnName);
+        return fileStorage.writeFile(newPath, toChange) & fileStorage.deleteFile(path);
     }
 
     public String getNameDB() {

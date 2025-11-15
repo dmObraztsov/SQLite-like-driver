@@ -25,6 +25,7 @@ public class JsonFileStorage implements FileStorage {
         return dir.exists();
     }
 
+    //TODO Jackson create field "empty" while writing Column, but after that can't read this field???
     @Override
     public Column readFile(String path) {
         try {
@@ -60,7 +61,23 @@ public class JsonFileStorage implements FileStorage {
         }
     }
 
+    @Override
+    public boolean deleteFile(String path) {
+        File file = new File(getFilePath(path));
+        return file.delete();
+    }
 
+    @Override
+    public boolean renameFile(String path, String newName)
+    {
+        File file = new File(getFilePath(path));
+        if(!file.exists()) {
+            System.out.println("Directory does not exist: " + file.getAbsolutePath());
+            return false;
+        }
+
+        return file.renameTo(new File(getFilePath(newName)));
+    }
 
     @Override
     public boolean createDirectory(String path) {
