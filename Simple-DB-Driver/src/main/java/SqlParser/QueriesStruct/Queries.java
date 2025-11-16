@@ -58,7 +58,7 @@ public class Queries {
 
         @Override
         public boolean execute(FileManager fileManager) {
-            return fileManager.setNameDB(databaseName);
+            return fileManager.useDB(databaseName);
         }
 
         @Override

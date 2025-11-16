@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 public class TableMetadata {
-    private String tableName;
+    private String name;
     private List<ColumnMetadata> columns; // Описание всех колонок
     private int rowCount;                 // Количество строк
     private String filePath;              // Путь к файлам таблицы

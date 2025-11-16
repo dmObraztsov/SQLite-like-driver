@@ -1,35 +1,24 @@
 package FileWork.JSON;
 
 import FileWork.FileStorage;
-import Yadro.DataStruct.Column;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
 import java.io.IOException;
 
 public class JsonFileStorage implements FileStorage {
-    private static final String BASE_PATH = "src/main/data/";
     private final ObjectMapper mapper = JacksonConfig.createConfiguredMapper();
-
-    private String getFullPath(String path) {
-        return BASE_PATH + path;
-    }
-
-    private String getFilePath(String path) {
-        return getFullPath(path + ".json");
-    }
 
     @Override
     public boolean exists(String path) {
-        File dir = new File(getFullPath(path));
+        File dir = new File(path);
         return dir.exists();
     }
 
-    //TODO Jackson create field "empty" while writing Column, but after that can't read this field???
     @Override
-    public Column readFile(String path) {
+    public <T> T readFile(String path, Class<T> type) {
         try {
-            File file = new File(getFilePath(path));
+            File file = new File(path);
 
             if (!file.exists()) {
                 System.out.println("File does not exist: " + file.getAbsolutePath());
@@ -41,7 +30,8 @@ public class JsonFileStorage implements FileStorage {
                 return null;
             }
 
-            return mapper.readValue(file, Column.class);
+            System.out.println("File successfully read: " + file.getAbsolutePath());
+            return mapper.readValue(file, type);
         } catch (IOException e) {
             System.err.println("Error reading file '" + path + "': " + e.getMessage());
             return null;
@@ -49,9 +39,9 @@ public class JsonFileStorage implements FileStorage {
     }
 
     @Override
-    public boolean writeFile(String path, Column content) {
+    public <T> boolean writeFile(String path, T content) {
         try {
-            File file = new File(getFilePath(path));
+            File file = new File(path);
             mapper.writeValue(file, content);
             System.out.println("File successfully written: " + file.getAbsolutePath());
             return true;
@@ -63,25 +53,42 @@ public class JsonFileStorage implements FileStorage {
 
     @Override
     public boolean deleteFile(String path) {
-        File file = new File(getFilePath(path));
-        return file.delete();
+        File file = new File(path);
+        if (file.exists()) {
+            boolean deleted = file.delete();
+            if (deleted) {
+                System.out.println("File deleted: " + file.getAbsolutePath());
+            } else {
+                System.out.println("Failed to delete directory: " + file.getAbsolutePath());
+            }
+            return deleted;
+        }
+
+        System.out.println("File does not exist: " + file.getAbsolutePath());
+        return false;
     }
 
     @Override
     public boolean renameFile(String path, String newName)
     {
-        File file = new File(getFilePath(path));
-        if(!file.exists()) {
-            System.out.println("Directory does not exist: " + file.getAbsolutePath());
-            return false;
+        File file = new File(path);
+        if (file.exists()) {
+            boolean renamed = file.renameTo(new File(newName));
+            if (renamed) {
+                System.out.println("File renamed: " + file.getAbsolutePath());
+            } else {
+                System.out.println("Failed to rename directory: " + file.getAbsolutePath());
+            }
+            return renamed;
         }
 
-        return file.renameTo(new File(getFilePath(newName)));
+        System.out.println("File does not exist: " + file.getAbsolutePath());
+        return false;
     }
 
     @Override
     public boolean createDirectory(String path) {
-        File folder = new File(getFullPath(path));
+        File folder = new File(path);
         if (!folder.exists()) {
             boolean created = folder.mkdirs();
             if (created) {
@@ -97,7 +104,7 @@ public class JsonFileStorage implements FileStorage {
 
     @Override
     public boolean deleteDirectory(String path) {
-        File folder = new File(getFullPath(path));
+        File folder = new File(path);
         if (!folder.exists()) {
             System.out.println("Directory does not exist: " + folder.getAbsolutePath());
             return false;
@@ -115,13 +122,14 @@ public class JsonFileStorage implements FileStorage {
     @Override
     public boolean renameDirectory(String path, String newName)
     {
-        File folder = new File(getFullPath(path));
+        File folder = new File(path);
         if(!folder.exists()) {
             System.out.println("Directory does not exist: " + folder.getAbsolutePath());
             return false;
         }
 
-        return folder.renameTo(new File(getFullPath(newName)));
+        System.out.println("Directory successful renamed: " + folder.getAbsolutePath());
+        return folder.renameTo(new File(newName));
     }
 
     private boolean deleteFolder(File folder) {

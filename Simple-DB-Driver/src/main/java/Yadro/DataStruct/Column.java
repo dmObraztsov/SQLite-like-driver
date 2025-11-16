@@ -58,9 +58,9 @@ public class Column {
         this.name = name;
     }
 
-//    public void setConstraints(Constraints constraint) {
-//        this.constraints.add(constraint);
-//    }
+    public void setConstraints(Constraints constraint) {
+        this.constraints.add(constraint);
+    }
 
     public void setConstraints(ArrayList<Constraints> constraints) {
         this.constraints.addAll(constraints);
@@ -82,10 +82,6 @@ public class Column {
             return data.get(index);
         }
         return null;
-    }
-
-    public boolean isEmpty() {
-        return data.isEmpty();
     }
 
     @Override
