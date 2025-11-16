@@ -80,11 +80,18 @@ public class Queries {
         @Override
         public boolean execute(FileManager fileManager) {
             boolean flag = fileManager.createTable(tableName);
+            if(!flag)
+            {
+                fileManager.dropTable(tableName);
+                return flag;
+            }
+
             for(Column curr : tableColumns)
             {
                 flag = fileManager.saveColumn(tableName, curr);
                 if(!flag)
                 {
+                    fileManager.dropTable(tableName);
                     return flag;
                 }
             }

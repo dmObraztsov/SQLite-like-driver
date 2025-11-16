@@ -75,12 +75,12 @@ public class FileManager {
         }
 
         ColumnMetadata columnMetadata = new ColumnMetadata();
-        return fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, column.getName()), column) &
+        return fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, column.getName()), column) &&
                 fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, column.getName()), columnMetadata);
     }
 
     public boolean deleteColumn(String tableName, String columnName) {
-        return fileStorage.deleteFile(PathManager.getColumnPath(nameDB, tableName, columnName)) &
+        return fileStorage.deleteFile(PathManager.getColumnPath(nameDB, tableName, columnName)) &&
                 fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName));
     }
 
