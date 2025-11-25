@@ -1,5 +1,6 @@
 package SqlParser.Antlr;
 
+import FileWork.Metadata.ColumnMetadata;
 import SqlParser.QueriesStruct.Queries;
 import SqlParser.QueriesStruct.QueryInterface;
 import Yadro.DataStruct.Collate;
@@ -39,7 +40,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     @Override
     public QueryInterface visitCreateTableStatement(SQLParser.CreateTableStatementContext ctx) {
         String tableName = ctx.name().getText();
-        ArrayList<Column> columns = new ArrayList<>();
+        ArrayList<ColumnMetadata> columns = new ArrayList<>();
         for(SQLParser.ColumnContext curr : ctx.column())
         {
             columns.add(parseColumn(curr));
@@ -66,7 +67,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         else if (alterAction.addColumn() != null) {
             // Обработка ADD COLUMN
             SQLParser.ColumnContext columnContext = alterAction.addColumn().column();
-            Column column = parseColumn(columnContext);
+            ColumnMetadata column = parseColumn(columnContext);
             return new Queries.AlterTableQuery.AlterAddColumnQuery(tableName, column);
         }
         else if (alterAction.dropColumn() != null) {
@@ -119,12 +120,11 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         return constraint;
     }
 
-    private Column parseColumn(SQLParser.ColumnContext columnContext) {
+    private ColumnMetadata parseColumn(SQLParser.ColumnContext columnContext) {
         DataType dataType = switch (columnContext.TYPE().getText()) {
             case "INTEGER" -> DataType.INTEGER;
             case "REAL" -> DataType.REAL;
             case "TEXT" -> DataType.TEXT;
-            case "BLOB" -> DataType.BLOB;
             default -> null;
         };
 
@@ -137,7 +137,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         Collate collate = null; // TODO
-        return new Column(dataType, columnContext.name().getText(), constraints, collate);
+        return new ColumnMetadata(columnContext.name().getText(), dataType, 0, constraints, collate, 0, null, null);
     }
 
 }

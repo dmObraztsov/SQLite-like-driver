@@ -1,12 +1,12 @@
 package SqlParser.QueriesStruct;
 
 import FileWork.FileManager;
+import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.Column;
-import Yadro.JournalManager;
+import Yadro.DataStruct.DataType;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 public class Queries {
 
@@ -72,9 +72,9 @@ public class Queries {
     public static class CreateTableQuery implements QueryInterface
     {
         private final String tableName;
-        private final ArrayList<Column> tableColumns = new ArrayList<>();
+        private final ArrayList<ColumnMetadata> tableColumns = new ArrayList<>();
 
-        public CreateTableQuery(String tableName, ArrayList<Column> tableColumns) {
+        public CreateTableQuery(String tableName, ArrayList<ColumnMetadata> tableColumns) {
             this.tableName = tableName;
             this.tableColumns.addAll(tableColumns);
         }
@@ -87,9 +87,9 @@ public class Queries {
                 return flag;
             }
 
-            for(Column curr : tableColumns)
+            for(ColumnMetadata curr : tableColumns)
             {
-                flag = fileManager.saveColumn(tableName, curr);
+                flag = fileManager.createColumn(tableName, curr);
                 if(!flag)
                 {
                     fileManager.dropTable(tableName);
@@ -167,16 +167,16 @@ public class Queries {
 
         public static class AlterAddColumnQuery extends AlterTableQuery
         {
-            private final Column column;
+            private final ColumnMetadata column;
 
-            public AlterAddColumnQuery(String tableName, Column column) {
+            public AlterAddColumnQuery(String tableName, ColumnMetadata column) {
                 super(tableName);
                 this.column = column;
             }
 
             @Override
             public boolean execute(FileManager fileManager) {
-                return fileManager.saveColumn(super.tableName, this.column);
+                return fileManager.createColumn(super.tableName, this.column);
             }
 
             @Override
@@ -261,9 +261,20 @@ public class Queries {
             {
                 for(int i = 0; i < columns.size(); i++)
                 {
-                    Column curr = fileManager.loadColumn(tableName, columns.get(i));
-                    curr.addToColumn(values.get(i));
-                    flag = fileManager.saveColumn(tableName, curr);
+                    Column column = fileManager.loadColumn(tableName, columns.get(i));
+                    ColumnMetadata columnMetadata = fileManager.loadColumnMetadata(tableName, columns.get(i));
+                    DataType dataType = providedType(values.get(i));
+                    if(dataType == null ||
+                            !dataType.equals(columnMetadata.getType()) ||
+                            !satisfiesConstraints(columnMetadata, values.get(i))) {
+                        return false;
+                    }
+
+                    column.addData(values.get(i));
+                    columnMetadata.setSize(columnMetadata.getSize() + 1);
+
+                    flag = fileManager.saveColumn(tableName, columns.get(i), column) &
+                            fileManager.saveColumnMetadata(tableName, columns.get(i), columnMetadata);
                 }
             }
 
@@ -275,5 +286,20 @@ public class Queries {
             return "";
         }
 
+        private DataType providedType(String content) {
+            if(content.equals("NULL")) return DataType.NULL;
+            if(content.matches("-?\\d+")) return DataType.INTEGER;
+            if(content.matches("-?\\d+(\\.\\d+)?")) return DataType.REAL;
+            if(content.startsWith("\"") && content.endsWith("\"") && content.length() >= 2) return DataType.TEXT;
+            else return null;
+        }
+
+        private boolean satisfiesConstraints(ColumnMetadata columnMetadata, String content) {
+            return true;
+        }
+
+        private boolean isDecimal(String str) {
+            return str != null && str.matches("-?\\d+(\\.\\d+)?");
+        }
     }
 }

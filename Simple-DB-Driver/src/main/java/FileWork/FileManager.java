@@ -77,8 +77,8 @@ public class FileManager {
         return fileStorage.readFile(PathManager.getColumnPath(nameDB, tableName, columnName), Column.class);
     }
 
-    public boolean saveColumn(String tableName, Column column) {
-        if (column == null) {
+    public boolean createColumn(String tableName, ColumnMetadata columnMetadata) {
+        if (columnMetadata == null) {
             System.out.println("Column cannot be null");
             return false;
         }
@@ -88,14 +88,27 @@ public class FileManager {
             fileStorage.createDirectory(PathManager.getTableDataPath(nameDB, tableName));
         }
 
-        ColumnMetadata columnMetadata = new ColumnMetadata(column);
+        Column column = new Column();
         TableMetadata tableMetadata = fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
         tableMetadata.setColumnCount(tableMetadata.getColumnCount() + 1);
-        tableMetadata.addColumnName(column.getName());
+        tableMetadata.addColumnName(columnMetadata.getName());
 
-        return fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, column.getName()), column) &
-                fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, column.getName()), columnMetadata) &
+        return fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, columnMetadata.getName()), column) &
+                fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnMetadata.getName()), columnMetadata) &
                 fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, tableName), tableMetadata);
+    }
+
+    public boolean saveColumn(String tableName, String columnName, Column column){
+        return fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, columnName), column);
+    }
+
+    public ColumnMetadata loadColumnMetadata(String tableName, String columnName) {
+        return fileStorage.readFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName), ColumnMetadata.class);
+    }
+
+    public boolean saveColumnMetadata(String tableName, String columnName, ColumnMetadata columnMetadata)
+    {
+        return fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName), columnMetadata);
     }
 
     public boolean deleteColumn(String tableName, String columnName) {
@@ -109,13 +122,11 @@ public class FileManager {
     }
 
     public boolean renameColumn(String tableName, String columnName, String changeColumnName) {
-        Column toChange = fileStorage.readFile(PathManager.getColumnPath(nameDB, tableName, columnName), Column.class);
-        toChange.setName(changeColumnName);
-        ColumnMetadata toChangeMeta = fileStorage.readFile(PathManager.getColumnPath(nameDB, tableName, columnName),
-                ColumnMetadata.class);
-        return fileStorage.deleteFile(PathManager.getColumnPath(nameDB, tableName, columnName)) &
+        ColumnMetadata toChangeMeta = fileStorage.readFile(PathManager.
+                getColumnMetadataPath(nameDB, tableName, columnName), ColumnMetadata.class);
+        toChangeMeta.setName(changeColumnName);
+        return fileStorage.renameFile(PathManager.getColumnPath(nameDB, tableName, columnName), changeColumnName) &
                 fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName)) &
-                fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, changeColumnName), toChange) &
                 fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, changeColumnName), toChangeMeta);
     }
 

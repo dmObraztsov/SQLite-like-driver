@@ -19,20 +19,17 @@ public class ColumnMetadata {
     private Object maxValue;
     // TODO private long dataSize;
 
-    public ColumnMetadata() {
-    }
+    public ColumnMetadata() {}
 
-    public ColumnMetadata(Column column)
-    {
-        this.name = column.getName();
-        this.type = column.getType();
-        this.size = column.getSize();
-        this.constraints = column.getConstraints();
-        this.collate = column.getCollate();
-        this.nullCount = column.nullCount();
-        this.minValue = column.minValue();
-        this.maxValue = column.maxValue();
-        //this.dataSize = column.dataSize();
+    public ColumnMetadata(String name, DataType type, int size, ArrayList<Constraints> constraints, Collate collate, int nullCount, Object minValue, Object maxValue) {
+        this.name = name;
+        this.type = type;
+        this.size = size;
+        this.constraints = constraints;
+        this.collate = collate;
+        this.nullCount = nullCount;
+        this.minValue = minValue;
+        this.maxValue = maxValue;
     }
 
     public String getName() {

@@ -5,5 +5,5 @@ public enum DataType {
     INTEGER,
     REAL,
     TEXT,
-    BLOB
+    //TODO BLOB
 }
