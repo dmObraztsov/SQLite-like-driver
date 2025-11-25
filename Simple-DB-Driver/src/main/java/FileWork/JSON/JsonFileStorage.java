@@ -120,7 +120,7 @@ public class JsonFileStorage implements FileStorage {
     }
 
     @Override
-    public boolean renameDirectory(String path, String newName)
+    public boolean renameDirectory(String path, String newPath)
     {
         File folder = new File(path);
         if(!folder.exists()) {
@@ -129,7 +129,7 @@ public class JsonFileStorage implements FileStorage {
         }
 
         System.out.println("Directory successful renamed: " + folder.getAbsolutePath());
-        return folder.renameTo(new File(newName));
+        return folder.renameTo(new File(newPath));
     }
 
     private boolean deleteFolder(File folder) {

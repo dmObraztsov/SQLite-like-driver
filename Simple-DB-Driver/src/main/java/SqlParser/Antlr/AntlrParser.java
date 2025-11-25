@@ -8,6 +8,7 @@ import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Про то как тут все работает, лучше мне лично объяснить, но вкратце - библиотека генерит свои классы, а нам в них
@@ -52,6 +53,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         return new Queries.DropTableQuery(ctx.name().getText());
     }
 
+    @Override
     public QueryInterface visitAlterTableStatement(SQLParser.AlterTableStatementContext ctx) {
         String tableName = ctx.name().getText();
         SQLParser.AlterActionContext alterAction = ctx.alterAction();
@@ -80,6 +82,25 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         return new Queries.AlterTableQuery(tableName);
+    }
+
+    @Override
+    public QueryInterface visitInsertTableStatement(SQLParser.InsertTableStatementContext ctx) {
+        String tableName = ctx.tablename().getText();
+        ArrayList<String> columns = new ArrayList<>();
+        ArrayList<String> values = new ArrayList<>();
+
+        for(int i = 0; i < ctx.name().size(); i++)
+        {
+            columns.add(ctx.name().get(i).getText());
+        }
+
+        for(int i = 0; i < ctx.data().size(); i++)
+        {
+            values.add(ctx.data().get(i).getText());
+        }
+
+        return new Queries.InsertTableQuery(tableName, columns, values);
     }
 
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {

@@ -14,6 +14,7 @@ public class Column {
 
     public Column() {}
 
+    @JsonIgnore
     public Column(DataType type, String name, ArrayList<Constraints> constraints, Collate collate) {
         this.type = type;
         this.name = name;
@@ -30,18 +31,22 @@ public class Column {
         return data.size();
     }
 
+    @JsonIgnore
     public DataType getType() {
         return type;
     }
 
+    @JsonIgnore
     public String getName() {
         return name;
     }
 
+    @JsonIgnore
     public ArrayList<Constraints> getConstraints() {
         return constraints;
     }
 
+    @JsonIgnore
     public Collate getCollate() {
         return collate;
     }
@@ -50,22 +55,27 @@ public class Column {
         return data;
     }
 
+    @JsonIgnore
     public void setType(DataType type) {
         this.type = type;
     }
 
+    @JsonIgnore
     public void setName(String name) {
         this.name = name;
     }
 
+    @JsonIgnore
     public void setConstraints(Constraints constraint) {
         this.constraints.add(constraint);
     }
 
+    @JsonIgnore
     public void setConstraints(ArrayList<Constraints> constraints) {
         this.constraints.addAll(constraints);
     }
 
+    @JsonIgnore
     public void setCollate(Collate collate) {
         this.collate = collate;
     }
@@ -82,6 +92,34 @@ public class Column {
             return data.get(index);
         }
         return null;
+    }
+
+    public int nullCount() {
+        int count = 0;
+        for(Object curr : data)
+        {
+            if(curr == null)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    //TODO
+    public Object minValue() {
+        return null;
+    }
+
+    //TODO
+    public Object maxValue() {
+        return null;
+    }
+
+    //TODO
+    public int dataSize() {
+        return 0;
     }
 
     @Override

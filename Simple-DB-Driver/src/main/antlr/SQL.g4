@@ -5,7 +5,8 @@ query : createDBStatement
       | useDBStatement
       | createTableStatement
       | dropTableStatement
-      | alterTableStatement;
+      | alterTableStatement
+      | insertTableStatement;
 
 createDBStatement : CREATE DATABASE ifNotExists? name;
 dropDBStatement : DROP DATABASE name;
@@ -13,6 +14,7 @@ useDBStatement : USE DATABASE name;
 createTableStatement : CREATE TABLE ifNotExists? name ('(' column (',' column)* ')')?;
 dropTableStatement : DROP TABLE name;
 alterTableStatement : ALTER TABLE name alterAction;
+insertTableStatement : INSERT INTO tablename ('(' name (',' name)* ')')? VALUES ('(' data (',' data)* ')');
 
 alterAction : addColumn
             | dropColumn
@@ -29,7 +31,9 @@ notNull : NOT NULL;
 primaryKey : PRIMARY KEY;
 column : name TYPE constraint*;
 constraint : notNull | primaryKey | AUTOINCREMENT | UNIQUE | NULL | CHECK | DEFAULT;
-name: ID;
+name: NAME;
+tablename: NAME;
+data: ID;
 
 CREATE : 'CREATE';
 DROP : 'DROP';
@@ -39,6 +43,9 @@ ADD : 'ADD';
 COLUMN : 'COLUMN';
 RENAME : 'RENAME';
 TO : 'TO';
+INSERT : 'INSERT';
+INTO : 'INTO';
+VALUES : 'VALUES';
 
 DATABASE : 'DATABASE';
 TABLE : 'TABLE';
@@ -56,5 +63,8 @@ DEFAULT : 'DEFAULT';
 
 TYPE : 'INTEGER' | 'REAL' | 'TEXT' | 'BLOB';
 
-ID : [a-zA-Z_][a-zA-Z_0-9]*;
+NAME : [a-zA-Z_][a-zA-Z_0-9]*;
+ID : NUMBER | STRING;
+STRING : '"' (~["\\] | '\\' .)* '"';
+NUMBER : [0-9]+ ('.' [0-9]+)?;
 WS : [ \t\r\n]+ -> skip;

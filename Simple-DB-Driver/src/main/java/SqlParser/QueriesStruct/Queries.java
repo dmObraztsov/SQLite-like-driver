@@ -1,10 +1,12 @@
 package SqlParser.QueriesStruct;
 
 import FileWork.FileManager;
+import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.Column;
 import Yadro.JournalManager;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class Queries {
 
@@ -82,7 +84,6 @@ public class Queries {
             boolean flag = fileManager.createTable(tableName);
             if(!flag)
             {
-                fileManager.dropTable(tableName);
                 return flag;
             }
 
@@ -225,5 +226,54 @@ public class Queries {
                 return "Add column to table with mame " + "\"" + super.tableName + "\"";
             }
         }
+    }
+
+    public static class InsertTableQuery implements QueryInterface
+    {
+        private final String tableName;
+        private final ArrayList<String> columns;
+        private final ArrayList<String> values;
+
+        public InsertTableQuery(String tableName, ArrayList<String> columns, ArrayList<String> values)
+        {
+            this.tableName = tableName;
+            this.columns = new ArrayList<>(columns);
+            this.values = new ArrayList<>(values);
+        }
+
+        @Override
+        public boolean execute(FileManager fileManager) {
+            boolean flag = true;
+
+            if(columns.isEmpty())
+            {
+                TableMetadata tableMetadata = fileManager.getTableMetadata(tableName);
+                columns.addAll(tableMetadata.getColumnNames());
+                if(columns.size() != values.size()) return false;
+            }
+
+            if(columns.size() != values.size())
+            {
+                //Use autoincrement to missing columns if they exist
+            }
+
+            else
+            {
+                for(int i = 0; i < columns.size(); i++)
+                {
+                    Column curr = fileManager.loadColumn(tableName, columns.get(i));
+                    curr.addToColumn(values.get(i));
+                    flag = fileManager.saveColumn(tableName, curr);
+                }
+            }
+
+            return flag;
+        }
+
+        @Override
+        public String getStringVision() {
+            return "";
+        }
+
     }
 }

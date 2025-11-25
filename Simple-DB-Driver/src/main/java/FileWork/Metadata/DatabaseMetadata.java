@@ -15,21 +15,19 @@ public class DatabaseMetadata {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private Date lastModified;
 
-    private long totalSize;
+    //TODO private long totalSize;
 
     public DatabaseMetadata() {
     }
 
     public DatabaseMetadata(String name, String version, String encoding,
-                            String collation, Date createdDate, Date lastModified,
-                            long totalSize) {
+                            String collation, Date createdDate, Date lastModified) {
         this.name = name;
         this.version = version;
         this.encoding = encoding;
         this.collation = collation;
         this.createdDate = createdDate;
         this.lastModified = lastModified;
-        this.totalSize = totalSize;
     }
 
     public String getName() {
@@ -78,13 +76,5 @@ public class DatabaseMetadata {
 
     public void setLastModified(Date lastModified) {
         this.lastModified = lastModified;
-    }
-
-    public long getTotalSize() {
-        return totalSize;
-    }
-
-    public void setTotalSize(long totalSize) {
-        this.totalSize = totalSize;
     }
 }
