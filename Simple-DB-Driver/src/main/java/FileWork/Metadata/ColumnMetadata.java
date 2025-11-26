@@ -1,10 +1,8 @@
 package FileWork.Metadata;
 
 import Yadro.DataStruct.Collate;
-import Yadro.DataStruct.Column;
 import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.ArrayList;
 
@@ -19,7 +17,7 @@ public class ColumnMetadata {
     private Object maxValue;
     // TODO private long dataSize;
 
-    public ColumnMetadata() {}
+    public ColumnMetadata(String testColumnName, String string, boolean b, boolean b1) {}
 
     public ColumnMetadata(String name, DataType type, int size, ArrayList<Constraints> constraints, Collate collate, int nullCount, Object minValue, Object maxValue) {
         this.name = name;
