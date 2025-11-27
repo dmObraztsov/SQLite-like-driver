@@ -30,7 +30,8 @@ public class Main {
                 continue;
             }
 
-            if(!currentQuery.execute(fileManager))
+            if(!currentQuery.execute(fileManager)) //TODO Нужно ограничить возможность изменять и
+                // удалять внутренние системные файлы
             {
                 System.out.println("Error in query: " + currentQuery.getClass());
             }

@@ -1,24 +1,21 @@
 package Yadro.DataStruct;
 
 import java.util.ArrayList;
-import java.util.List;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class Column {
-    private ArrayList<Object> data = new ArrayList<>();
+    private ArrayList<String> data = new ArrayList<>();
 
     public Column(){}
 
-    public ArrayList<Object> getData() {
+    public ArrayList<String> getData() {
         return data;
     }
 
-    public void setData(ArrayList<Object> data) {
+    public void setData(ArrayList<String> data) {
         this.data = data;
     }
 
-    public boolean addData(Object content) {
+    public boolean addData(String content) {
         data.add(content);
         return true;
     }

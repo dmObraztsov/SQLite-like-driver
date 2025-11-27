@@ -1,1 +1,1 @@
-{"name":"name","type":"TEXT","size":3,"constraints":[],"collate":null,"nullCount":0,"minValue":null,"maxValue":null}
+{"name":"name","type":"TEXT","size":1,"constraints":[],"collate":null}

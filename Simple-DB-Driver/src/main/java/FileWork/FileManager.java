@@ -4,6 +4,9 @@ import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.DatabaseMetadata;
 import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.Column;
+import Yadro.DataStruct.Constraints;
+import Yadro.DataStruct.DataType;
+import Yadro.DataStruct.PrimaryKeyMap;
 
 import java.io.File;
 import java.util.Date;
@@ -46,12 +49,12 @@ public class FileManager {
         return setNameDB(nameDB);
     }
 
-    public DatabaseMetadata getDatabaseMetadata() {
+    public DatabaseMetadata loadDatabaseMetadata() {
         return fileStorage.readFile(PathManager.getDatabasePath(nameDB), DatabaseMetadata.class);
     }
 
     public boolean createTable(String tableName) {
-        TableMetadata tableMetadata = new TableMetadata(tableName, 0);
+        TableMetadata tableMetadata = new TableMetadata(tableName, 0, 0);
         return fileStorage.createDirectory(PathManager.getTablePath(nameDB, tableName)) &
                 fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, tableName), tableMetadata);
     }
@@ -69,7 +72,7 @@ public class FileManager {
                 fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, changeTableName), toChange);
     }
 
-    public TableMetadata getTableMetadata(String tableName) {
+    public TableMetadata loadTableMetadata(String tableName) {
         return fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
     }
 
@@ -83,19 +86,29 @@ public class FileManager {
             return false;
         }
 
+        Column column = new Column();
+        TableMetadata tableMetadata = fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
+        tableMetadata.setColumnCount(tableMetadata.getColumnCount() + 1);
+        tableMetadata.addColumnName(columnMetadata.getName());
+        if(columnMetadata.getConstraints().contains(Constraints.PRIMARY_KEY)) tableMetadata.addPrimaryKey();
+        if(columnMetadata.getConstraints().contains(Constraints.AUTOINCREMENT)) {
+            if(columnMetadata.getType() != DataType.INTEGER || !columnMetadata.getConstraints().contains(Constraints.PRIMARY_KEY)) {
+                return false;
+            }
+        }
+
+        return fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, columnMetadata.getName()), column) &
+                fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnMetadata.getName()), columnMetadata) &
+                fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, tableName), tableMetadata);
+    }
+
+    public boolean createPrimaryKeyMap(String tableName) {
         if(!new File(PathManager.getTableDataPath(nameDB, tableName)).exists())
         {
             fileStorage.createDirectory(PathManager.getTableDataPath(nameDB, tableName));
         }
 
-        Column column = new Column();
-        TableMetadata tableMetadata = fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
-        tableMetadata.setColumnCount(tableMetadata.getColumnCount() + 1);
-        tableMetadata.addColumnName(columnMetadata.getName());
-
-        return fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, columnMetadata.getName()), column) &
-                fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnMetadata.getName()), columnMetadata) &
-                fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, tableName), tableMetadata);
+        return fileStorage.writeFile(PathManager.getTableDataIDMapColumnsPath(nameDB, tableName), new PrimaryKeyMap());
     }
 
     public boolean saveColumn(String tableName, String columnName, Column column){
@@ -109,6 +122,16 @@ public class FileManager {
     public boolean saveColumnMetadata(String tableName, String columnName, ColumnMetadata columnMetadata)
     {
         return fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName), columnMetadata);
+    }
+
+    public boolean savePrimaryKeyMap(String tableName, PrimaryKeyMap primaryKeyMap)
+    {
+        return fileStorage.writeFile(PathManager.getTableDataIDMapColumnsPath(nameDB, tableName), primaryKeyMap);
+    }
+
+    public PrimaryKeyMap loadPrimaryKeyMap(String tableName)
+    {
+        return fileStorage.readFile(PathManager.getTableDataIDMapColumnsPath(nameDB, tableName), PrimaryKeyMap.class);
     }
 
     public boolean deleteColumn(String tableName, String columnName) {

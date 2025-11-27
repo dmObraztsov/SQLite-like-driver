@@ -1,1 +1,1 @@
-{"name":"Users","columnCount":2,"columnNames":["id","name"]}
+{"name":"Users","columnCount":2,"countPrimaryKeys":1,"columnNames":["id","name"]}

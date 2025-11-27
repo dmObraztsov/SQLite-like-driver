@@ -1,1 +1,1 @@
-{"name":"id","type":"INTEGER","size":3,"constraints":["PRIMARY_KEY"],"collate":null,"nullCount":0,"minValue":null,"maxValue":null}
+{"name":"id","type":"INTEGER","size":2,"constraints":["PRIMARY_KEY","AUTOINCREMENT"],"collate":null}

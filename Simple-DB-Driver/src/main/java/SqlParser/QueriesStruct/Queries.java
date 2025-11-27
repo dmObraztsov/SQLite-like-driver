@@ -3,10 +3,10 @@ package SqlParser.QueriesStruct;
 import FileWork.FileManager;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
-import Yadro.DataStruct.Column;
-import Yadro.DataStruct.DataType;
+import Yadro.DataStruct.*;
 
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class Queries {
 
@@ -81,12 +81,18 @@ public class Queries {
 
         @Override
         public boolean execute(FileManager fileManager) {
-            boolean flag = fileManager.createTable(tableName);
+            boolean flag;
+
+            flag = fileManager.createTable(tableName);
+            if(!flag) return flag;
+
+            flag = fileManager.createPrimaryKeyMap(tableName);
             if(!flag)
             {
                 return flag;
             }
 
+            boolean contPrimaryKey = false;
             for(ColumnMetadata curr : tableColumns)
             {
                 flag = fileManager.createColumn(tableName, curr);
@@ -95,6 +101,19 @@ public class Queries {
                     fileManager.dropTable(tableName);
                     return flag;
                 }
+
+                if(curr.getConstraints().contains(Constraints.PRIMARY_KEY)) contPrimaryKey = true;
+            }
+
+            if(!contPrimaryKey) {
+                ArrayList<Constraints> constraints = new ArrayList<>();
+                constraints.add(Constraints.UNIQUE);
+                constraints.add(Constraints.NOT_NULL);
+                constraints.add(Constraints.AUTOINCREMENT);
+                constraints.add(Constraints.PRIMARY_KEY);
+
+                ColumnMetadata primaryKey = new ColumnMetadata("_id", DataType.INTEGER, 0, constraints, null);
+                fileManager.createColumn(tableName, primaryKey);
             }
 
             return flag;
@@ -243,42 +262,12 @@ public class Queries {
 
         @Override
         public boolean execute(FileManager fileManager) {
-            boolean flag = true;
+            initializeColumnsIfEmpty(fileManager);
 
-            if(columns.isEmpty())
-            {
-                TableMetadata tableMetadata = fileManager.getTableMetadata(tableName);
-                columns.addAll(tableMetadata.getColumnNames());
-                if(columns.size() != values.size()) return false;
-            }
+            ArrayList<Object> primaryKeys = processColumnsAndCollectPrimaryKeys(fileManager);
+            workPrimaryKey(primaryKeys, fileManager);
 
-            if(columns.size() != values.size())
-            {
-                //Use autoincrement to missing columns if they exist
-            }
-
-            else
-            {
-                for(int i = 0; i < columns.size(); i++)
-                {
-                    Column column = fileManager.loadColumn(tableName, columns.get(i));
-                    ColumnMetadata columnMetadata = fileManager.loadColumnMetadata(tableName, columns.get(i));
-                    DataType dataType = providedType(values.get(i));
-                    if(dataType == null ||
-                            !dataType.equals(columnMetadata.getType()) ||
-                            !satisfiesConstraints(columnMetadata, values.get(i))) {
-                        return false;
-                    }
-
-                    column.addData(values.get(i));
-                    columnMetadata.setSize(columnMetadata.getSize() + 1);
-
-                    flag = fileManager.saveColumn(tableName, columns.get(i), column) &
-                            fileManager.saveColumnMetadata(tableName, columns.get(i), columnMetadata);
-                }
-            }
-
-            return flag;
+            return true;
         }
 
         @Override
@@ -294,12 +283,96 @@ public class Queries {
             else return null;
         }
 
-        private boolean satisfiesConstraints(ColumnMetadata columnMetadata, String content) {
+        private boolean checkConstraints(Column column, ColumnMetadata columnMetadata, String content) {
+            for(Constraints curr : columnMetadata.getConstraints()) {
+                switch (curr) {
+                    case UNIQUE:
+                        if(column.getData().contains(content)) return false;
+                        break;
+                    case NOT_NULL:
+                        if(content == null) return false;
+                        break;
+                    case CHECK:                        //TODO
+                        break;
+                    case DEFAULT:                        //TODO
+                        break;
+                }
+            }
+
             return true;
         }
 
-        private boolean isDecimal(String str) {
-            return str != null && str.matches("-?\\d+(\\.\\d+)?");
+        private void appendDataToColumn(Column column, ColumnMetadata columnMetadata, String data, FileManager fileManager) {
+            if(columnMetadata.getType() == providedType(data) && checkConstraints(column, columnMetadata, data)) {
+                column.addData(data);
+                columnMetadata.incrementSize();
+
+                fileManager.saveColumn(tableName, columnMetadata.getName(), column);
+                fileManager.saveColumnMetadata(tableName, columnMetadata.getName(), columnMetadata);
+            }
+        }
+
+        private void workPrimaryKey(ArrayList<Object> primaryKeys, FileManager fileManager) {
+            PrimaryKeyMap primaryKeyMap = fileManager.loadPrimaryKeyMap(tableName);
+            primaryKeyMap.addLink(primaryKeys, (Integer) (primaryKeys.getFirst()));
+
+
+            fileManager.savePrimaryKeyMap(tableName, primaryKeyMap);
+        }
+
+        private void initializeColumnsIfEmpty(FileManager fileManager) {
+            if (columns.isEmpty()) {
+                TableMetadata tableMetadata = fileManager.loadTableMetadata(tableName);
+                columns.addAll(tableMetadata.getColumnNames());
+            }
+        }
+
+        private ArrayList<Object> processColumnsAndCollectPrimaryKeys(FileManager fileManager) {
+            ArrayList<Object> primaryKeys = new ArrayList<>();
+            int valueIndex = 0;
+
+            for (String columnName : columns) {
+                Column column = fileManager.loadColumn(tableName, columnName);
+                ColumnMetadata metadata = fileManager.loadColumnMetadata(tableName, columnName);
+
+                if (isAutoIncrementPrimaryKey(metadata)) {
+                    Object primaryKeyValue = processAutoIncrementColumn(column, metadata, fileManager);
+                    primaryKeys.add(primaryKeyValue);
+                } else {
+                    processRegularColumn(column, metadata, values.get(valueIndex++), fileManager);
+                }
+            }
+
+            return primaryKeys;
+        }
+
+        private boolean isAutoIncrementPrimaryKey(ColumnMetadata metadata) {
+            return metadata.getConstraints().contains(Constraints.PRIMARY_KEY) &&
+                    metadata.getConstraints().contains(Constraints.AUTOINCREMENT) &&
+                    metadata.getType() == DataType.INTEGER;
+        }
+
+        private Object processAutoIncrementColumn(Column column, ColumnMetadata metadata,
+                                                  FileManager fileManager) {
+            int lastValue = getLastColumnValue(column);
+            int newValue = lastValue + 1;
+
+            appendDataToColumn(column, metadata, String.valueOf(newValue), fileManager);
+
+            return newValue;
+        }
+
+        private void processRegularColumn(Column column, ColumnMetadata metadata,
+                                          Object value, FileManager fileManager) {
+            appendDataToColumn(column, metadata, String.valueOf(value), fileManager);
+        }
+
+        private int getLastColumnValue(Column column) {
+            if (column.getData().isEmpty()) {
+                return 0;
+            }
+
+            return Integer.parseInt(column.getData().getLast());
         }
     }
 }

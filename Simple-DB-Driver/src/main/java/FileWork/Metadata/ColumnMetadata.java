@@ -14,22 +14,15 @@ public class ColumnMetadata {
     private int size;
     private ArrayList<Constraints> constraints = new ArrayList<>();
     private Collate collate;
-    private int nullCount;
-    private Object minValue;
-    private Object maxValue;
-    // TODO private long dataSize;
 
     public ColumnMetadata() {}
 
-    public ColumnMetadata(String name, DataType type, int size, ArrayList<Constraints> constraints, Collate collate, int nullCount, Object minValue, Object maxValue) {
+    public ColumnMetadata(String name, DataType type, int size, ArrayList<Constraints> constraints, Collate collate) {
         this.name = name;
         this.type = type;
         this.size = size;
         this.constraints = constraints;
         this.collate = collate;
-        this.nullCount = nullCount;
-        this.minValue = minValue;
-        this.maxValue = maxValue;
     }
 
     public String getName() {
@@ -52,18 +45,6 @@ public class ColumnMetadata {
         return collate;
     }
 
-    public int getNullCount() {
-        return nullCount;
-    }
-
-    public Object getMinValue() {
-        return minValue;
-    }
-
-    public Object getMaxValue() {
-        return maxValue;
-    }
-
     public void setName(String name) {
         this.name = name;
     }
@@ -84,15 +65,8 @@ public class ColumnMetadata {
         this.collate = collate;
     }
 
-    public void setNullCount(int nullCount) {
-        this.nullCount = nullCount;
-    }
-
-    public void setMinValue(Object minValue) {
-        this.minValue = minValue;
-    }
-
-    public void setMaxValue(Object maxValue) {
-        this.maxValue = maxValue;
+    @JsonIgnore
+    public void incrementSize() {
+        this.size++;
     }
 }

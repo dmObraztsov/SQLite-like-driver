@@ -112,7 +112,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         case "PRIMARYKEY" -> Constraints.PRIMARY_KEY;
         case "AUTOINCREMENT" -> Constraints.AUTOINCREMENT;
         case "UNIQUE" -> Constraints.UNIQUE;
-        case "NULL" -> Constraints.NULL;
         case "CHECK" -> Constraints.CHECK;
         case  "DEFAULT" -> Constraints.DEFAULT;
         default ->  null;
@@ -137,7 +136,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         Collate collate = null; // TODO
-        return new ColumnMetadata(columnContext.name().getText(), dataType, 0, constraints, collate, 0, null, null);
+        return new ColumnMetadata(columnContext.name().getText(), dataType, 0, constraints, collate);
     }
 
 }

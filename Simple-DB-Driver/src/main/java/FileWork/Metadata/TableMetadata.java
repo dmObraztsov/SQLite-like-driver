@@ -8,18 +8,17 @@ import java.util.ArrayList;
 public class TableMetadata {
     private String name;
     private int columnCount;
+    private int countPrimaryKeys;
     private ArrayList<String> columnNames;
-    //It might be necessary to create a 'ColumnsDataTypes'
-    // field here so that you don't have to parse the column for data type validation every time.
-    //TODO private int dataSize;
 
     public TableMetadata(){
     }
 
-    public TableMetadata(String name, int columnCount)
+    public TableMetadata(String name, int columnCount, int countPrimaryKeys)
     {
         this.name = name;
         this.columnCount = columnCount;
+        this.countPrimaryKeys = countPrimaryKeys;
         columnNames = new ArrayList<>();
     }
 
@@ -29,6 +28,10 @@ public class TableMetadata {
 
     public int getColumnCount() {
         return columnCount;
+    }
+
+    public int getCountPrimaryKeys() {
+        return countPrimaryKeys;
     }
 
     public ArrayList<String> getColumnNames() {
@@ -41,6 +44,10 @@ public class TableMetadata {
 
     public void setColumnCount(int columnCount) {
         this.columnCount = columnCount;
+    }
+
+    public void setCountPrimaryKeys(int countPrimaryKeys) {
+        this.countPrimaryKeys = countPrimaryKeys;
     }
 
     public void setColumnNames(ArrayList<String> columnNames) {
@@ -57,5 +64,11 @@ public class TableMetadata {
     public void deleteColumnName(String name)
     {
         columnNames.remove(name);
+    }
+
+    @JsonIgnore
+    public void addPrimaryKey()
+    {
+        this.countPrimaryKeys++;
     }
 }
