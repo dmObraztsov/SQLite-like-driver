@@ -15,7 +15,7 @@ public class Column {
         this.data = data;
     }
 
-    public boolean addData(String content) {
+    public boolean addData(String content, int index) {
         data.add(content);
         return true;
     }

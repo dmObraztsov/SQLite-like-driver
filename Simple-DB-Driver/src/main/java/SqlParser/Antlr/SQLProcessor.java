@@ -23,6 +23,6 @@ public class SQLProcessor {
 
         SQLVisitor<QueryInterface> visitor = new AntlrParser();
 
-        return visitor.visit(tree); //TODO parsing errors
+        return visitor.visit(tree);
     }
 }

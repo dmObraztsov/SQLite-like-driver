@@ -23,8 +23,7 @@ public class PathManager {
         return getTablePath(dataBaseName, tableName) + '/' + "data/";
     }
 
-    public static String getColumnPath(String dataBaseName, String tableName, String columnName)
-    {
+    public static String getColumnPath(String dataBaseName, String tableName, String columnName) {
         return getTableDataPath(dataBaseName, tableName) + columnName + ".json";
     }
 

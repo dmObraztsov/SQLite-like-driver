@@ -1,7 +1,6 @@
 package FileWork.Metadata;
 
 import Yadro.DataStruct.Collate;
-import Yadro.DataStruct.Column;
 import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
 import com.fasterxml.jackson.annotation.JsonIgnore;

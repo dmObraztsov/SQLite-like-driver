@@ -1,6 +1,5 @@
 package FileWork.Metadata;
 
-import Yadro.DataStruct.DataType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.ArrayList;
@@ -8,17 +7,19 @@ import java.util.ArrayList;
 public class TableMetadata {
     private String name;
     private int columnCount;
-    private int countPrimaryKeys;
+    private int countAutoIncrements;
+    private int countDefaults;
     private ArrayList<String> columnNames;
 
     public TableMetadata(){
     }
 
-    public TableMetadata(String name, int columnCount, int countPrimaryKeys)
+    public TableMetadata(String name, int columnCount, int countAutoIncrements, int countDefaults)
     {
         this.name = name;
         this.columnCount = columnCount;
-        this.countPrimaryKeys = countPrimaryKeys;
+        this.countAutoIncrements = countAutoIncrements;
+        this.countDefaults = countDefaults;
         columnNames = new ArrayList<>();
     }
 
@@ -30,8 +31,12 @@ public class TableMetadata {
         return columnCount;
     }
 
-    public int getCountPrimaryKeys() {
-        return countPrimaryKeys;
+    public int getCountAutoIncrements() {
+        return countAutoIncrements;
+    }
+
+    public int getCountDefaults() {
+        return countDefaults;
     }
 
     public ArrayList<String> getColumnNames() {
@@ -46,8 +51,12 @@ public class TableMetadata {
         this.columnCount = columnCount;
     }
 
-    public void setCountPrimaryKeys(int countPrimaryKeys) {
-        this.countPrimaryKeys = countPrimaryKeys;
+    public void setCountAutoIncrements(int countAutoIncrements) {
+        this.countAutoIncrements = countAutoIncrements;
+    }
+
+    public void setCountDefaults(int countDefaults) {
+        this.countDefaults = countDefaults;
     }
 
     public void setColumnNames(ArrayList<String> columnNames) {
@@ -67,8 +76,14 @@ public class TableMetadata {
     }
 
     @JsonIgnore
-    public void addPrimaryKey()
+    public void addAutoIncrement()
     {
-        this.countPrimaryKeys++;
+        this.countAutoIncrements++;
+    }
+
+    @JsonIgnore
+    public void addDefault()
+    {
+        this.countDefaults++;
     }
 }

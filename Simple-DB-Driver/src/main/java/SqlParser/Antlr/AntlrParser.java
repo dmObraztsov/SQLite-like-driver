@@ -4,12 +4,10 @@ import FileWork.Metadata.ColumnMetadata;
 import SqlParser.QueriesStruct.Queries;
 import SqlParser.QueriesStruct.QueryInterface;
 import Yadro.DataStruct.Collate;
-import Yadro.DataStruct.Column;
 import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 /**
  * Про то как тут все работает, лучше мне лично объяснить, но вкратце - библиотека генерит свои классы, а нам в них
@@ -60,23 +58,20 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         SQLParser.AlterActionContext alterAction = ctx.alterAction();
 
         if (alterAction.renameTable() != null) {
-            // Обработка RENAME TABLE
             String newTableName = alterAction.renameTable().name().getText();
             return new Queries.AlterTableQuery.AlterRenameTableQuery(tableName, newTableName);
         }
+
         else if (alterAction.addColumn() != null) {
-            // Обработка ADD COLUMN
             SQLParser.ColumnContext columnContext = alterAction.addColumn().column();
             ColumnMetadata column = parseColumn(columnContext);
             return new Queries.AlterTableQuery.AlterAddColumnQuery(tableName, column);
         }
         else if (alterAction.dropColumn() != null) {
-            // Обработка DROP COLUMN
             String columnName = alterAction.dropColumn().name().getText();
             return new Queries.AlterTableQuery.AlterDropColumnQuery(tableName, columnName);
         }
         else if (alterAction.renameColumn() != null) {
-            // Обработка RENAME COLUMN
             String oldColumnName = alterAction.renameColumn().name(0).getText();
             String newColumnName = alterAction.renameColumn().name(1).getText();
             return new Queries.AlterTableQuery.AlterRenameColumnQuery(tableName, oldColumnName, newColumnName);
@@ -91,13 +86,11 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         ArrayList<String> columns = new ArrayList<>();
         ArrayList<String> values = new ArrayList<>();
 
-        for(int i = 0; i < ctx.name().size(); i++)
-        {
+        for(int i = 0; i < ctx.name().size(); i++) {
             columns.add(ctx.name().get(i).getText());
         }
 
-        for(int i = 0; i < ctx.data().size(); i++)
-        {
+        for(int i = 0; i < ctx.data().size(); i++) {
             values.add(ctx.data().get(i).getText());
         }
 
@@ -124,6 +117,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             case "INTEGER" -> DataType.INTEGER;
             case "REAL" -> DataType.REAL;
             case "TEXT" -> DataType.TEXT;
+            case "NULL" -> DataType.NULL;
             default -> null;
         };
 

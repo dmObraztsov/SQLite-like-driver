@@ -33,7 +33,7 @@ public class FileManager {
     public boolean createDB(String name) {
         Date current = new Date();
         DatabaseMetadata databaseMetadata = new DatabaseMetadata(name, "1.0.0", "UTF-16", "Default", current, current);
-        return fileStorage.createDirectory(PathManager.getDatabasePath(name)) &
+        return fileStorage.createDirectory(PathManager.getDatabasePath(name)) &&
                 fileStorage.writeFile(PathManager.getDatabaseMetadataPath(name), databaseMetadata);
     }
 
@@ -54,8 +54,8 @@ public class FileManager {
     }
 
     public boolean createTable(String tableName) {
-        TableMetadata tableMetadata = new TableMetadata(tableName, 0, 0);
-        return fileStorage.createDirectory(PathManager.getTablePath(nameDB, tableName)) &
+        TableMetadata tableMetadata = new TableMetadata(tableName, 0, 0, 0);
+        return fileStorage.createDirectory(PathManager.getTablePath(nameDB, tableName)) &&
                 fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, tableName), tableMetadata);
     }
 
@@ -67,8 +67,8 @@ public class FileManager {
         TableMetadata toChange = fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
         toChange.setName(changeTableName);
 
-        return fileStorage.renameDirectory(PathManager.getTablePath(nameDB, tableName), PathManager.getTablePath(nameDB, changeTableName)) &
-                fileStorage.deleteFile(PathManager.getTableMetadataPath(nameDB, changeTableName)) &
+        return fileStorage.renameDirectory(PathManager.getTablePath(nameDB, tableName), PathManager.getTablePath(nameDB, changeTableName)) &&
+                fileStorage.deleteFile(PathManager.getTableMetadataPath(nameDB, changeTableName)) &&
                 fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, changeTableName), toChange);
     }
 
@@ -86,20 +86,24 @@ public class FileManager {
             return false;
         }
 
-        Column column = new Column();
         TableMetadata tableMetadata = fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
-        tableMetadata.setColumnCount(tableMetadata.getColumnCount() + 1);
-        tableMetadata.addColumnName(columnMetadata.getName());
-        if(columnMetadata.getConstraints().contains(Constraints.PRIMARY_KEY)) tableMetadata.addPrimaryKey();
-        if(columnMetadata.getConstraints().contains(Constraints.AUTOINCREMENT)) {
-            if(columnMetadata.getType() != DataType.INTEGER || !columnMetadata.getConstraints().contains(Constraints.PRIMARY_KEY)) {
-                return false;
-            }
+        if (tableMetadata == null) {
+            System.out.println("Table metadata not found for table: " + tableName);
+            return false;
         }
 
-        return fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, columnMetadata.getName()), column) &
-                fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnMetadata.getName()), columnMetadata) &
-                fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, tableName), tableMetadata);
+        if (!validateColumn(columnMetadata)) {
+            return false;
+        }
+
+        updateTableMetadata(tableMetadata, columnMetadata);
+        Column column = new Column();
+        return writeColumnFiles(tableName, columnMetadata, column, tableMetadata);
+    }
+
+    public boolean createId(String tableName) {
+        Column _id = new Column();
+        return fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, "_id"), _id);
     }
 
     public boolean createPrimaryKeyMap(String tableName) {
@@ -139,8 +143,8 @@ public class FileManager {
         tableMetadata.setColumnCount(tableMetadata.getColumnCount() - 1);
         tableMetadata.deleteColumnName(columnName);
 
-        return fileStorage.deleteFile(PathManager.getColumnPath(nameDB, tableName, columnName)) &
-                fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName)) &
+        return fileStorage.deleteFile(PathManager.getColumnPath(nameDB, tableName, columnName)) &&
+                fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName)) &&
                 fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, tableName), tableMetadata);
     }
 
@@ -148,8 +152,8 @@ public class FileManager {
         ColumnMetadata toChangeMeta = fileStorage.readFile(PathManager.
                 getColumnMetadataPath(nameDB, tableName, columnName), ColumnMetadata.class);
         toChangeMeta.setName(changeColumnName);
-        return fileStorage.renameFile(PathManager.getColumnPath(nameDB, tableName, columnName), changeColumnName) &
-                fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName)) &
+        return fileStorage.renameFile(PathManager.getColumnPath(nameDB, tableName, columnName), changeColumnName) &&
+                fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName)) &&
                 fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, changeColumnName), toChangeMeta);
     }
 
@@ -170,5 +174,57 @@ public class FileManager {
 
         System.out.println("Database does not exist: " + nameDB);
         return false;
+    }
+
+    private boolean validateColumn(ColumnMetadata columnMetadata) {
+        if (columnMetadata.getConstraints().contains(Constraints.AUTOINCREMENT)) {
+            if (columnMetadata.getType() != DataType.INTEGER ||
+                    !columnMetadata.getConstraints().contains(Constraints.PRIMARY_KEY)) {
+                System.out.println("AUTOINCREMENT can only be used with INTEGER PRIMARY KEY");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void updateTableMetadata(TableMetadata tableMetadata, ColumnMetadata columnMetadata) {
+        tableMetadata.setColumnCount(tableMetadata.getColumnCount() + 1);
+        tableMetadata.addColumnName(columnMetadata.getName());
+
+        if (columnMetadata.getConstraints().contains(Constraints.AUTOINCREMENT)) {
+            tableMetadata.addAutoIncrement();
+        }
+
+        if (columnMetadata.getConstraints().contains(Constraints.DEFAULT)) {
+            tableMetadata.addDefault();
+        }
+    }
+
+    private boolean writeColumnFiles(String tableName, ColumnMetadata columnMetadata, Column column, TableMetadata tableMetadata) {
+        String columnPath = PathManager.getColumnPath(nameDB, tableName, columnMetadata.getName());
+        String columnMetadataPath = PathManager.getColumnMetadataPath(nameDB, tableName, columnMetadata.getName());
+        String tableMetadataPath = PathManager.getTableMetadataPath(nameDB, tableName);
+
+        boolean columnWritten = fileStorage.writeFile(columnPath, column);
+        boolean metadataWritten = fileStorage.writeFile(columnMetadataPath, columnMetadata);
+        boolean tableMetadataWritten = fileStorage.writeFile(tableMetadataPath, tableMetadata);
+
+        if (!(columnWritten && metadataWritten && tableMetadataWritten)) {
+            rollbackColumnCreation(tableName, columnMetadata, columnWritten, metadataWritten);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void rollbackColumnCreation(String tableName, ColumnMetadata columnMetadata,
+                                        boolean columnWritten, boolean metadataWritten) {
+        if (columnWritten) {
+            fileStorage.deleteFile(PathManager.getColumnPath(nameDB, tableName, columnMetadata.getName()));
+        }
+        if (metadataWritten) {
+            fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnMetadata.getName()));
+        }
+        System.out.println("Failed to create column: " + columnMetadata.getName());
     }
 }

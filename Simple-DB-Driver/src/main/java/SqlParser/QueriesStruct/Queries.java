@@ -6,7 +6,6 @@ import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.*;
 
 import java.util.ArrayList;
-import java.util.Objects;
 
 public class Queries {
 
@@ -82,39 +81,20 @@ public class Queries {
         @Override
         public boolean execute(FileManager fileManager) {
             boolean flag;
+            flag = fileManager.createTable(tableName) & fileManager.createPrimaryKeyMap(tableName);
+            if(!flag) return false;
 
-            flag = fileManager.createTable(tableName);
-            if(!flag) return flag;
-
-            flag = fileManager.createPrimaryKeyMap(tableName);
-            if(!flag)
-            {
-                return flag;
-            }
-
-            boolean contPrimaryKey = false;
             for(ColumnMetadata curr : tableColumns)
             {
-                flag = fileManager.createColumn(tableName, curr);
-                if(!flag)
+
+                if(!fileManager.createColumn(tableName, curr))
                 {
                     fileManager.dropTable(tableName);
-                    return flag;
+                    return false;
                 }
-
-                if(curr.getConstraints().contains(Constraints.PRIMARY_KEY)) contPrimaryKey = true;
             }
 
-            if(!contPrimaryKey) {
-                ArrayList<Constraints> constraints = new ArrayList<>();
-                constraints.add(Constraints.UNIQUE);
-                constraints.add(Constraints.NOT_NULL);
-                constraints.add(Constraints.AUTOINCREMENT);
-                constraints.add(Constraints.PRIMARY_KEY);
-
-                ColumnMetadata primaryKey = new ColumnMetadata("_id", DataType.INTEGER, 0, constraints, null);
-                fileManager.createColumn(tableName, primaryKey);
-            }
+            flag = fileManager.createId(tableName);
 
             return flag;
         }
@@ -250,7 +230,7 @@ public class Queries {
     public static class InsertTableQuery implements QueryInterface
     {
         private final String tableName;
-        private final ArrayList<String> columns;
+        private ArrayList<String> columns;
         private final ArrayList<String> values;
 
         public InsertTableQuery(String tableName, ArrayList<String> columns, ArrayList<String> values)
@@ -260,19 +240,68 @@ public class Queries {
             this.values = new ArrayList<>(values);
         }
 
+        public record ColumnValue(boolean isPrimaryKey, String value, String column) {
+        }
+
         @Override
         public boolean execute(FileManager fileManager) {
-            initializeColumnsIfEmpty(fileManager);
+            //TODO пока вставляю все колонки, но потом нужно использовать только те что из запроса и понимать
+            // какие можно вставить NULL, а какие нельзя и бросить исключение если не сходится кол-во
+            TableMetadata tableMetadata = fileManager.loadTableMetadata(tableName);
+            columns = new ArrayList<>(tableMetadata.getColumnNames());
 
-            ArrayList<Object> primaryKeys = processColumnsAndCollectPrimaryKeys(fileManager);
-            workPrimaryKey(primaryKeys, fileManager);
+            if(values.size() + countAutoincrement(fileManager) + countDefault(fileManager) != columns.size()) return false;
 
-            return true;
+            ArrayList<ColumnValue> checkedRowToAdd = new ArrayList<>();
+            int j = 0;
+
+            for(String curr : columns) {
+                Column column = fileManager.loadColumn(tableName, curr);
+                ColumnMetadata columnMetadata = fileManager.loadColumnMetadata(tableName, curr);
+
+                boolean isPrimaryKey = false;
+                String value;
+
+                if(columnMetadata.getConstraints().contains(Constraints.PRIMARY_KEY)) {
+                    isPrimaryKey = true;
+                }
+
+                if(columnMetadata.getConstraints().contains(Constraints.DEFAULT)) {
+                    value = "SOME DEFAULT VALUE";
+                    //TODO иногда нужно вставить значение из values но я хз как понять когда надо, а когда не надо
+                }
+
+                else if(columnMetadata.getConstraints().contains(Constraints.AUTOINCREMENT)) {
+                    if(column.getData().isEmpty()) {
+                        value = "1";
+                    }
+
+                    else {
+                        value = String.valueOf(Integer.parseInt(column.getData().getLast()) + 1);
+                    }
+
+                }
+
+                else {
+                    value = values.get(j++);
+                }
+
+                if(fullCheck(column, columnMetadata, value)) {
+                    checkedRowToAdd.add(new ColumnValue(isPrimaryKey, value, curr));
+
+                }
+            }
+
+            return IndexWorker.AddToDataBase(checkedRowToAdd, fileManager, tableName);
         }
 
         @Override
         public String getStringVision() {
             return "";
+        }
+
+        private boolean fullCheck(Column column, ColumnMetadata columnMetadata, String content) {
+            return (providedType(content) == columnMetadata.getType()) && checkConstraints(column, columnMetadata, content);
         }
 
         private DataType providedType(String content) {
@@ -294,85 +323,18 @@ public class Queries {
                         break;
                     case CHECK:                        //TODO
                         break;
-                    case DEFAULT:                        //TODO
-                        break;
                 }
             }
 
             return true;
         }
 
-        private void appendDataToColumn(Column column, ColumnMetadata columnMetadata, String data, FileManager fileManager) {
-            if(columnMetadata.getType() == providedType(data) && checkConstraints(column, columnMetadata, data)) {
-                column.addData(data);
-                columnMetadata.incrementSize();
-
-                fileManager.saveColumn(tableName, columnMetadata.getName(), column);
-                fileManager.saveColumnMetadata(tableName, columnMetadata.getName(), columnMetadata);
-            }
+        private int countAutoincrement(FileManager fileManager) {
+            return fileManager.loadTableMetadata(tableName).getCountAutoIncrements();
         }
 
-        private void workPrimaryKey(ArrayList<Object> primaryKeys, FileManager fileManager) {
-            PrimaryKeyMap primaryKeyMap = fileManager.loadPrimaryKeyMap(tableName);
-            primaryKeyMap.addLink(primaryKeys, (Integer) (primaryKeys.getFirst()));
-
-
-            fileManager.savePrimaryKeyMap(tableName, primaryKeyMap);
-        }
-
-        private void initializeColumnsIfEmpty(FileManager fileManager) {
-            if (columns.isEmpty()) {
-                TableMetadata tableMetadata = fileManager.loadTableMetadata(tableName);
-                columns.addAll(tableMetadata.getColumnNames());
-            }
-        }
-
-        private ArrayList<Object> processColumnsAndCollectPrimaryKeys(FileManager fileManager) {
-            ArrayList<Object> primaryKeys = new ArrayList<>();
-            int valueIndex = 0;
-
-            for (String columnName : columns) {
-                Column column = fileManager.loadColumn(tableName, columnName);
-                ColumnMetadata metadata = fileManager.loadColumnMetadata(tableName, columnName);
-
-                if (isAutoIncrementPrimaryKey(metadata)) {
-                    Object primaryKeyValue = processAutoIncrementColumn(column, metadata, fileManager);
-                    primaryKeys.add(primaryKeyValue);
-                } else {
-                    processRegularColumn(column, metadata, values.get(valueIndex++), fileManager);
-                }
-            }
-
-            return primaryKeys;
-        }
-
-        private boolean isAutoIncrementPrimaryKey(ColumnMetadata metadata) {
-            return metadata.getConstraints().contains(Constraints.PRIMARY_KEY) &&
-                    metadata.getConstraints().contains(Constraints.AUTOINCREMENT) &&
-                    metadata.getType() == DataType.INTEGER;
-        }
-
-        private Object processAutoIncrementColumn(Column column, ColumnMetadata metadata,
-                                                  FileManager fileManager) {
-            int lastValue = getLastColumnValue(column);
-            int newValue = lastValue + 1;
-
-            appendDataToColumn(column, metadata, String.valueOf(newValue), fileManager);
-
-            return newValue;
-        }
-
-        private void processRegularColumn(Column column, ColumnMetadata metadata,
-                                          Object value, FileManager fileManager) {
-            appendDataToColumn(column, metadata, String.valueOf(value), fileManager);
-        }
-
-        private int getLastColumnValue(Column column) {
-            if (column.getData().isEmpty()) {
-                return 0;
-            }
-
-            return Integer.parseInt(column.getData().getLast());
+        private int countDefault(FileManager fileManager) {
+            return fileManager.loadTableMetadata(tableName).getCountDefaults();
         }
     }
 }
