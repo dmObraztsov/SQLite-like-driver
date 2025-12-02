@@ -5,7 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class PathManagerTest {
+public class PathManagerTest {
 
     private static final String BASE_PATH = "src/main/data/";
     private static final String DB_NAME = "testdb";

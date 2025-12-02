@@ -10,7 +10,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class JsonFileStorageTest {
+public class JsonFileStorageTest {
 
     @TempDir
     Path tempDir;
