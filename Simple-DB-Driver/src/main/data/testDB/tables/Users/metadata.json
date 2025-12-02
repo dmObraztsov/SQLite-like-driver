@@ -1,1 +1,1 @@
-{"name":"Users","columnCount":3,"countAutoIncrements":0,"countDefaults":0,"columnNames":["id","name","surname"]}
+{"name":"Users","columnCount":2,"countAutoIncrements":0,"countDefaults":0,"columnNames":["id","name"]}

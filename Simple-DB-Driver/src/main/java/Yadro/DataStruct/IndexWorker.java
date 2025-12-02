@@ -43,5 +43,7 @@ public class IndexWorker {
     private static void addToIdMap(FileManager fileManager, String tableName, Object key, int index) {
         PrimaryKeyMap primaryKeyMap = fileManager.loadPrimaryKeyMap(tableName);
         primaryKeyMap.addLink(key, index);
+
+        fileManager.savePrimaryKeyMap(tableName, primaryKeyMap);
     }
 }
