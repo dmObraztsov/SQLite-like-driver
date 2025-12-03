@@ -3,7 +3,6 @@ package FileWork.Metadata;
 import Yadro.DataStruct.Collate;
 import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.ArrayList;
 
@@ -14,7 +13,7 @@ public class ColumnMetadata {
     private ArrayList<Constraints> constraints = new ArrayList<>();
     private Collate collate;
 
-    public ColumnMetadata() {}
+    public ColumnMetadata(String testColumnName, String string, boolean b, boolean b1) {}
 
     public ColumnMetadata(String name, DataType type, int size, ArrayList<Constraints> constraints, Collate collate) {
         this.name = name;

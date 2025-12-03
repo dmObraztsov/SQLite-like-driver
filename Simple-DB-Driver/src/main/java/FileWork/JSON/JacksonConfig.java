@@ -12,20 +12,16 @@ public class JacksonConfig {
     public static ObjectMapper createConfiguredMapper() {
         ObjectMapper mapper = new ObjectMapper();
 
-//        // Игнорировать пустые поля
-//        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-//        mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
-//
-//        // Красивое форматирование JSON
-//        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-//
-//        // Игнорировать неизвестные свойства
-//        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-//
-//        // Не вызывать геттеры/сеттеры, если поля публичные
-//        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
-//        mapper.setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE);
-//        mapper.setVisibility(PropertyAccessor.SETTER, JsonAutoDetect.Visibility.NONE);
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
+
+        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+        mapper.setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE);
+        mapper.setVisibility(PropertyAccessor.SETTER, JsonAutoDetect.Visibility.NONE);
 
         return mapper;
     }
