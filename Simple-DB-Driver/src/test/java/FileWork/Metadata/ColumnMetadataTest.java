@@ -16,11 +16,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class ColumnMetadataTest {
 
     private ColumnMetadata column;
-    private ArrayList<Constraints> constraints;
 
     @BeforeEach
     void setUp() {
-        constraints = new ArrayList<>(Arrays.asList(
+        ArrayList<Constraints> constraints = new ArrayList<>(Arrays.asList(
                 Constraints.NOT_NULL,
                 Constraints.UNIQUE
         ));

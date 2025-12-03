@@ -7,17 +7,15 @@ import Yadro.DataStruct.DataType;
 import Yadro.DataStruct.Constraints;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.BeforeEach;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class SQLProcessorTest {
 
-    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ С РЕФЛЕКСИЕЙ ==========
+    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
 
     @SuppressWarnings("unchecked")
     private List<ColumnMetadata> getTableColumns(Queries.CreateTableQuery query) throws Exception {
@@ -69,7 +67,6 @@ class SQLProcessorTest {
 
         Queries.CreateTableQuery query = (Queries.CreateTableQuery) result;
 
-        // Получаем данные через рефлексию
         String tableName = getTableName(query);
         List<ColumnMetadata> columns = getTableColumns(query);
 
@@ -108,7 +105,7 @@ class SQLProcessorTest {
         assertEquals(2, columns.size());
 
         // Проверяем констрейнты первой колонки
-        List<Constraints> idConstraints = columns.get(0).getConstraints();
+        List<Constraints> idConstraints = columns.getFirst().getConstraints();
         assertTrue(idConstraints.contains(Constraints.PRIMARY_KEY));
         assertTrue(idConstraints.contains(Constraints.NOT_NULL));
         assertTrue(idConstraints.contains(Constraints.AUTOINCREMENT));
@@ -299,6 +296,6 @@ class SQLProcessorTest {
         List<ColumnMetadata> columns = getTableColumns(query);
 
         assertEquals(1, columns.size());
-        assertEquals("id", columns.get(0).getName());
+        assertEquals("id", columns.getFirst().getName());
     }
 }
