@@ -6,7 +6,6 @@ import SqlParser.QueriesStruct.QueryInterface;
 import Yadro.DataStruct.Collate;
 import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
-
 import java.util.ArrayList;
 
 /**

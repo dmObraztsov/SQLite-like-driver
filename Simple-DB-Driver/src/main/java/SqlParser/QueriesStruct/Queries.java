@@ -4,7 +4,7 @@ import FileWork.FileManager;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.*;
-
+import Exceptions.FileStorageException;
 import java.util.ArrayList;
 
 public class Queries {
@@ -81,6 +81,33 @@ public class Queries {
         @Override
         public boolean execute(FileManager fileManager) {
             boolean flag;
+
+            flag = fileManager.createTable(tableName) &
+                    fileManager.createPrimaryKeyMap(tableName);
+
+            if (!flag) return false;
+
+            for (ColumnMetadata curr : tableColumns) {
+                if (!fileManager.createColumn(tableName, curr)) {
+                    fileManager.dropTable(tableName);
+                    return false;
+                }
+            }
+
+            try {
+                fileManager.createId(tableName);
+            } catch (FileStorageException e) {
+                fileManager.dropTable(tableName);
+                return false;
+            }
+
+            return true;
+        }
+
+
+        /*
+        public boolean execute(FileManager fileManager) {
+            boolean flag;
             flag = fileManager.createTable(tableName) & fileManager.createPrimaryKeyMap(tableName);
             if(!flag) return false;
 
@@ -98,6 +125,8 @@ public class Queries {
 
             return flag;
         }
+        */
+
 
         @Override
         public String getStringVision() {

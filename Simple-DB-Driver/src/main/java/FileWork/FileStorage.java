@@ -1,5 +1,6 @@
 package FileWork;
 
+import Exceptions.FileStorageException;
 import FileWork.Metadata.DatabaseMetadata;
 import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.Column;
@@ -7,7 +8,7 @@ import Yadro.DataStruct.Column;
 public interface FileStorage {
     boolean exists(String path);
     <T> T readFile(String path, Class<T> type);
-    <T> boolean writeFile(String path, T content);
+    <T> void writeFile(String path, T content) throws FileStorageException;
     boolean deleteFile(String path);
     boolean renameFile(String path, String newName);
     boolean createDirectory(String path);
