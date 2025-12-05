@@ -1,5 +1,7 @@
 package FileWork.JSON;
 
+import Exceptions.FileStorageException;
+import Exceptions.NoFileException;
 import FileWork.FileStorage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -39,15 +41,13 @@ public class JsonFileStorage implements FileStorage {
     }
 
     @Override
-    public <T> boolean writeFile(String path, T content) {
+    public <T> void writeFile(String path, T content) throws NoFileException {
         try {
             File file = new File(path);
             mapper.writeValue(file, content);
             System.out.println("File successfully written: " + file.getAbsolutePath());
-            return true;
         } catch (IOException e) {
-            System.err.println("Error writing file '" + path + "': " + e.getMessage());
-            return false;
+            throw new NoFileException("Не удалось записать файл: " + path, e);
         }
     }
 
