@@ -74,9 +74,16 @@ public class FileManager {
         return setNameDB(nameDB);
     }
 
+    public DatabaseMetadata loadDatabaseMetadata() throws FileStorageException {
+        return fileStorage.readFile(PathManager.getDatabasePath(nameDB), DatabaseMetadata.class);
+    }
+
+    /*
     public DatabaseMetadata loadDatabaseMetadata() {
         return fileStorage.readFile(PathManager.getDatabasePath(nameDB), DatabaseMetadata.class);
     }
+
+     */
 
     public boolean createTable(String tableName) {
         TableMetadata tableMetadata = new TableMetadata(tableName, 0, 0, 0);
@@ -108,7 +115,7 @@ public class FileManager {
     }
 
 
-    public boolean renameTable(String tableName, String changeTableName) {
+    public boolean renameTable(String tableName, String changeTableName) throws FileStorageException {
         TableMetadata toChange = fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
         toChange.setName(changeTableName);
 
@@ -142,15 +149,15 @@ public class FileManager {
     }
      */
 
-    public TableMetadata loadTableMetadata(String tableName) {
+    public TableMetadata loadTableMetadata(String tableName) throws FileStorageException {
         return fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
     }
 
-    public Column loadColumn(String tableName, String columnName) {
+    public Column loadColumn(String tableName, String columnName) throws FileStorageException {
         return fileStorage.readFile(PathManager.getColumnPath(nameDB, tableName, columnName), Column.class);
     }
 
-    public boolean createColumn(String tableName, ColumnMetadata columnMetadata) {
+    public boolean createColumn(String tableName, ColumnMetadata columnMetadata) throws FileStorageException {
         if (columnMetadata == null) {
             System.out.println("Column cannot be null");
             return false;
@@ -219,7 +226,7 @@ public class FileManager {
     }
      */
 
-    public ColumnMetadata loadColumnMetadata(String tableName, String columnName) {
+    public ColumnMetadata loadColumnMetadata(String tableName, String columnName) throws FileStorageException {
         return fileStorage.readFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName), ColumnMetadata.class);
     }
 
@@ -261,13 +268,13 @@ public class FileManager {
 
      */
 
-    public PrimaryKeyMap loadPrimaryKeyMap(String tableName)
+    public PrimaryKeyMap loadPrimaryKeyMap(String tableName) throws FileStorageException
     {
         return fileStorage.readFile(PathManager.getTableDataIDMapColumnsPath(nameDB, tableName), PrimaryKeyMap.class);
     }
 
     //этот метод обновлю, когда допишу другие классы исключения и изменю соответствующие методы
-    public boolean deleteColumn(String tableName, String columnName) {
+    public boolean deleteColumn(String tableName, String columnName) throws FileStorageException {
         TableMetadata tableMetadata = fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
         tableMetadata.setColumnCount(tableMetadata.getColumnCount() - 1);
         tableMetadata.deleteColumnName(columnName);
@@ -296,7 +303,7 @@ public class FileManager {
 
      */
 
-    public boolean renameColumn(String tableName, String columnName, String changeColumnName) {
+    public boolean renameColumn(String tableName, String columnName, String changeColumnName) throws FileStorageException {
         ColumnMetadata toChangeMeta = fileStorage.readFile(PathManager.
                 getColumnMetadataPath(nameDB, tableName, columnName), ColumnMetadata.class);
         toChangeMeta.setName(changeColumnName);

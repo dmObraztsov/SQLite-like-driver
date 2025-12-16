@@ -1,10 +1,10 @@
 package SqlParser.QueriesStruct;
 
+import Exceptions.*;
 import FileWork.FileManager;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.*;
-import Exceptions.FileStorageException;
 import java.util.ArrayList;
 
 public class Queries {
@@ -88,8 +88,22 @@ public class Queries {
             if (!flag) return false;
 
             for (ColumnMetadata curr : tableColumns) {
-                if (!fileManager.createColumn(tableName, curr)) {
+                try {
+                    if (!fileManager.createColumn(tableName, curr)) {
+                        fileManager.dropTable(tableName);
+                        return false;
+                    }
+                } catch (FileStorageException e) {
                     fileManager.dropTable(tableName);
+                    if (e instanceof NoFileException) {
+                        System.err.println("File not found: " + e.getMessage());
+                    } else if (e instanceof EmptyFileException) {
+                        System.err.println("Empty file: " + e.getMessage());
+                    } else if (e instanceof PermissionDeniedException) {
+                        System.err.println("Permission denied: " + e.getMessage());
+                    } else if (e instanceof SerializationStorageException) {
+                        System.err.println("Deserialization error: " + e.getMessage());
+                    }
                     return false;
                 }
             }

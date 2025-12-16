@@ -7,7 +7,7 @@ import Yadro.DataStruct.Column;
 
 public interface FileStorage {
     boolean exists(String path);
-    <T> T readFile(String path, Class<T> type);
+    <T> T readFile(String path, Class<T> type) throws FileStorageException;
     <T> void writeFile(String path, T content) throws FileStorageException;
     boolean deleteFile(String path);
     boolean renameFile(String path, String newName);
