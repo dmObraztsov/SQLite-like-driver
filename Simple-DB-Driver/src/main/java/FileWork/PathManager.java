@@ -30,8 +30,4 @@ public class PathManager {
     public static String getColumnMetadataPath(String dataBaseName, String tableName, String columnName) {
         return getTableDataPath(dataBaseName, tableName) + columnName + ".metadata.json";
     }
-
-    public static String getTableDataIDMapColumnsPath(String dataBaseName, String tableName) {
-        return getColumnPath(dataBaseName, tableName, "_idmap");
-    }
 }

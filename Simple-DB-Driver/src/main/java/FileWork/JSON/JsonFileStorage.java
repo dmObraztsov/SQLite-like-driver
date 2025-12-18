@@ -39,32 +39,6 @@ public class JsonFileStorage implements FileStorage {
         }
     }
 
-
-    /*
-    public <T> T readFile(String path, Class<T> type) {
-        try {
-            File file = new File(path);
-
-            if (!file.exists()) {
-                System.out.println("File does not exist: " + file.getAbsolutePath());
-                return null;
-            }
-
-            if (file.length() == 0) {
-                System.out.println("File is empty: " + file.getAbsolutePath());
-                return null;
-            }
-
-            System.out.println("File successfully read: " + file.getAbsolutePath());
-            return mapper.readValue(file, type);
-        } catch (IOException e) {
-            System.err.println("Error reading file '" + path + "': " + e.getMessage());
-            return null;
-        }
-    }
-
-     */
-
     @Override
     public <T> void writeFile(String path, T content) throws NoFileException {
         try {

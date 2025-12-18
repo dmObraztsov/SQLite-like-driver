@@ -82,8 +82,7 @@ public class Queries {
         public boolean execute(FileManager fileManager) {
             boolean flag;
 
-            flag = fileManager.createTable(tableName) &
-                    fileManager.createPrimaryKeyMap(tableName);
+            flag = fileManager.createTable(tableName);
 
             if (!flag) return false;
 
@@ -108,39 +107,8 @@ public class Queries {
                 }
             }
 
-            try {
-                fileManager.createId(tableName);
-            } catch (FileStorageException e) {
-                fileManager.dropTable(tableName);
-                return false;
-            }
-
             return true;
         }
-
-
-        /*
-        public boolean execute(FileManager fileManager) {
-            boolean flag;
-            flag = fileManager.createTable(tableName) & fileManager.createPrimaryKeyMap(tableName);
-            if(!flag) return false;
-
-            for(ColumnMetadata curr : tableColumns)
-            {
-
-                if(!fileManager.createColumn(tableName, curr))
-                {
-                    fileManager.dropTable(tableName);
-                    return false;
-                }
-            }
-
-            flag = fileManager.createId(tableName);
-
-            return flag;
-        }
-        */
-
 
         @Override
         public String getStringVision() {
@@ -283,7 +251,7 @@ public class Queries {
             this.values = new ArrayList<>(values);
         }
 
-        public record ColumnValue(boolean isPrimaryKey, String value, String column) {
+        public record ColumnValue(String value, String column) {
         }
 
         @Override
@@ -293,8 +261,6 @@ public class Queries {
             TableMetadata tableMetadata = fileManager.loadTableMetadata(tableName);
             columns = new ArrayList<>(tableMetadata.getColumnNames());
 
-            if(values.size() + countAutoincrement(fileManager) + countDefault(fileManager) != columns.size()) return false;
-
             ArrayList<ColumnValue> checkedRowToAdd = new ArrayList<>();
             int j = 0;
 
@@ -302,35 +268,12 @@ public class Queries {
                 Column column = fileManager.loadColumn(tableName, curr);
                 ColumnMetadata columnMetadata = fileManager.loadColumnMetadata(tableName, curr);
 
-                boolean isPrimaryKey = false;
                 String value;
 
-                if(columnMetadata.getConstraints().contains(Constraints.PRIMARY_KEY)) {
-                    isPrimaryKey = true;
-                }
-
-                if(columnMetadata.getConstraints().contains(Constraints.DEFAULT)) {
-                    value = "SOME DEFAULT VALUE";
-                    //TODO иногда нужно вставить значение из values но я хз как понять когда надо, а когда не надо
-                }
-
-                else if(columnMetadata.getConstraints().contains(Constraints.AUTOINCREMENT)) {
-                    if(column.getData().isEmpty()) {
-                        value = "1";
-                    }
-
-                    else {
-                        value = String.valueOf(Integer.parseInt(column.getData().getLast()) + 1);
-                    }
-
-                }
-
-                else {
-                    value = values.get(j++);
-                }
+                value = values.get(j++);
 
                 if(fullCheck(column, columnMetadata, value)) {
-                    checkedRowToAdd.add(new ColumnValue(isPrimaryKey, value, curr));
+                    checkedRowToAdd.add(new ColumnValue(value, curr));
 
                 }
             }
@@ -368,16 +311,7 @@ public class Queries {
                         break;
                 }
             }
-
             return true;
-        }
-
-        private int countAutoincrement(FileManager fileManager) {
-            return fileManager.loadTableMetadata(tableName).getCountAutoIncrements();
-        }
-
-        private int countDefault(FileManager fileManager) {
-            return fileManager.loadTableMetadata(tableName).getCountDefaults();
         }
     }
 }
