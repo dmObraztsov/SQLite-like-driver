@@ -1,10 +1,10 @@
 package SqlParser.QueriesStruct;
 
+import Exceptions.*;
 import FileWork.FileManager;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.*;
-
 import java.util.ArrayList;
 
 public class Queries {
@@ -81,6 +81,47 @@ public class Queries {
         @Override
         public boolean execute(FileManager fileManager) {
             boolean flag;
+
+            flag = fileManager.createTable(tableName) &
+                    fileManager.createPrimaryKeyMap(tableName);
+
+            if (!flag) return false;
+
+            for (ColumnMetadata curr : tableColumns) {
+                try {
+                    if (!fileManager.createColumn(tableName, curr)) {
+                        fileManager.dropTable(tableName);
+                        return false;
+                    }
+                } catch (FileStorageException e) {
+                    fileManager.dropTable(tableName);
+                    if (e instanceof NoFileException) {
+                        System.err.println("File not found: " + e.getMessage());
+                    } else if (e instanceof EmptyFileException) {
+                        System.err.println("Empty file: " + e.getMessage());
+                    } else if (e instanceof PermissionDeniedException) {
+                        System.err.println("Permission denied: " + e.getMessage());
+                    } else if (e instanceof SerializationStorageException) {
+                        System.err.println("Deserialization error: " + e.getMessage());
+                    }
+                    return false;
+                }
+            }
+
+            try {
+                fileManager.createId(tableName);
+            } catch (FileStorageException e) {
+                fileManager.dropTable(tableName);
+                return false;
+            }
+
+            return true;
+        }
+
+
+        /*
+        public boolean execute(FileManager fileManager) {
+            boolean flag;
             flag = fileManager.createTable(tableName) & fileManager.createPrimaryKeyMap(tableName);
             if(!flag) return false;
 
@@ -98,6 +139,8 @@ public class Queries {
 
             return flag;
         }
+        */
+
 
         @Override
         public String getStringVision() {

@@ -1,5 +1,6 @@
 package FileWork.JSON;
 
+import Exceptions.*;
 import FileWork.FileStorage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -16,6 +17,30 @@ public class JsonFileStorage implements FileStorage {
     }
 
     @Override
+    public <T> T readFile(String path, Class<T> type) throws FileStorageException {
+        File file = new File(path);
+
+        if (!file.exists()) {
+            throw new NoFileException("File not found:" + path);
+        }
+
+        if (file.length() == 0) {
+            throw new EmptyFileException("Empty File:" + path);
+        }
+
+        if (!file.canRead()) {
+            throw new PermissionDeniedException("Permission denied:" + path);
+        }
+
+        try {
+            return mapper.readValue(file, type);
+        } catch (IOException e) {
+            throw new SerializationStorageException("Error reading file: " + path, e);
+        }
+    }
+
+
+    /*
     public <T> T readFile(String path, Class<T> type) {
         try {
             File file = new File(path);
@@ -38,16 +63,16 @@ public class JsonFileStorage implements FileStorage {
         }
     }
 
+     */
+
     @Override
-    public <T> boolean writeFile(String path, T content) {
+    public <T> void writeFile(String path, T content) throws NoFileException {
         try {
             File file = new File(path);
             mapper.writeValue(file, content);
             System.out.println("File successfully written: " + file.getAbsolutePath());
-            return true;
         } catch (IOException e) {
-            System.err.println("Error writing file '" + path + "': " + e.getMessage());
-            return false;
+            throw new NoFileException("Не удалось записать файл: " + path, e);
         }
     }
 
