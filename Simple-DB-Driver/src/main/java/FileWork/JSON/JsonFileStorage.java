@@ -34,104 +34,161 @@ public class JsonFileStorage implements FileStorage {
 
         try {
             return mapper.readValue(file, type);
-        } catch (IOException e) {
-            throw new SerializationStorageException("Error reading file: " + path, e);
+        } catch (IOException e) { //mapper выбрасывает IO, обернем
+            throw new SerializationStorageException("Could not read file: " + path, e);
         }
     }
 
     @Override
-    public <T> void writeFile(String path, T content) throws NoFileException {
+    public <T> void writeFile(String path, T content) throws FileStorageException {
+        File file = new File(path);
+
+        if (!file.exists()) {
+            throw new NoFileException("File not found:" + path);
+        }
+
+        if (!file.canWrite()) {
+            throw new PermissionDeniedException("Permission denied:" + path);
+        }
+
         try {
-            File file = new File(path);
             mapper.writeValue(file, content);
             System.out.println("File successfully written: " + file.getAbsolutePath());
         } catch (IOException e) {
-            throw new NoFileException("Не удалось записать файл: " + path, e);
+            throw new SerializationStorageException("Could not write file: " + path, e);
         }
     }
 
     @Override
-    public boolean deleteFile(String path) {
+    public void deleteFile(String path) throws FileStorageException {
         File file = new File(path);
-        if (file.exists()) {
-            boolean deleted = file.delete();
-            if (deleted) {
-                System.out.println("File deleted: " + file.getAbsolutePath());
-            } else {
-                System.out.println("Failed to delete directory: " + file.getAbsolutePath());
-            }
-            return deleted;
+
+        if (!file.exists()) {
+            throw new NoFileException("File not found:" + path);
         }
 
-        System.out.println("File does not exist: " + file.getAbsolutePath());
-        return false;
+        if (!file.canWrite()) {
+            throw new PermissionDeniedException("Permission denied:" + path);
+        }
+
+        boolean deleted =  file.delete();
+        if (!deleted) {
+            throw new FileStorageException("Could not delete file: " + path);
+        }
     }
 
     @Override
-    public boolean renameFile(String path, String newName)
-    {
+    public void renameFile(String path, String newName) throws FileStorageException {
         File file = new File(path);
-        if (file.exists()) {
-            boolean renamed = file.renameTo(new File(newName));
-            if (renamed) {
-                System.out.println("File renamed: " + file.getAbsolutePath());
-            } else {
-                System.out.println("Failed to rename directory: " + file.getAbsolutePath());
-            }
-            return renamed;
+        File target = new File(newName);
+
+        if(!file.canWrite()) {
+            throw new PermissionDeniedException("Permission denied:" + path);
         }
 
-        System.out.println("File does not exist: " + file.getAbsolutePath());
-        return false;
+        /*
+        File parent = target.getParentFile();
+        if (parent != null && !parent.canWrite()) {
+            throw new PermissionDeniedException("Permission denied: cannot write to directory: " + parent.getPath());
+        }
+
+        пока не определились нужна ли фича под которую написано исключение,
+        пока пуст будет закомментирован
+         */
+
+        if (target.exists()) {
+            throw new AlreadyExistsException("File with new name already exists:" + newName);
+        }
+
+        if (!file.exists()) {
+            throw new NoFileException("File Not Found: " + path);
+        }
+
+        boolean renamed = file.renameTo(new File(newName));
+        if (!renamed) {
+            throw new FileStorageException("Could not rename file: " + newName);
+        }
     }
 
     @Override
-    public boolean createDirectory(String path) {
+    public void createDirectory(String path) throws FileStorageException {
         File folder = new File(path);
-        if (!folder.exists()) {
-            boolean created = folder.mkdirs();
-            if (created) {
-                System.out.println("Directory created: " + folder.getAbsolutePath());
+
+        if (folder.exists()) {
+            if (folder.isDirectory()) {
+                return;
             } else {
-                System.out.println("Failed to create directory: " + folder.getAbsolutePath());
+                throw new AlreadyExistsException("A file with the same name already exists: " + path);
             }
-            return created;
         }
-        System.out.println("Directory already exists: " + folder.getAbsolutePath());
-        return false;
+
+        File parent = folder.getParentFile(); // родительская директория folder
+        if (parent != null && !parent.canWrite()) {
+            throw new PermissionDeniedException("Cannot write to parent directory: " + parent.getAbsolutePath());
+        }
+
+        boolean created = folder.mkdirs();
+        if (!created) {
+            throw new FileStorageException("Failed to create directory: " + path);
+        }
     }
 
     @Override
-    public boolean deleteDirectory(String path) {
+    public void deleteDirectory(String path) throws FileStorageException {
         File folder = new File(path);
+
         if (!folder.exists()) {
-            System.out.println("Directory does not exist: " + folder.getAbsolutePath());
-            return false;
+            throw new NoFileException("File not found: " + path);
+        }
+
+        if (!folder.isDirectory()) {
+            throw new FileTypeException("Not a directory: " + path);
+        }
+
+        if  (!folder.canWrite()) {
+            throw new PermissionDeniedException("Cannot delete due to accession rights: " + path);
         }
 
         boolean deleted = deleteFolder(folder);
-        if (deleted) {
-            System.out.println("Directory deleted: " + folder.getAbsolutePath());
-        } else {
-            System.out.println("Failed to delete directory: " + folder.getAbsolutePath());
+        if (!deleted) {
+            throw new FileStorageException("Could not delete directory: " + path);
         }
-        return deleted;
     }
 
     @Override
-    public boolean renameDirectory(String path, String newPath)
-    {
+    public void renameDirectory(String path, String newPath) throws FileStorageException {
         File folder = new File(path);
+        File target = new File(newPath);
+
         if(!folder.exists()) {
-            System.out.println("Directory does not exist: " + folder.getAbsolutePath());
-            return false;
+            throw new NoFileException("File not found: " + path);
         }
 
-        System.out.println("Directory successful renamed: " + folder.getAbsolutePath());
-        return folder.renameTo(new File(newPath));
+        /*
+        File parent = folder.getParentFile();
+        if (parent != null && !parent.canWrite()) {
+            throw new PermissionDeniedException("Cannot rename directory due to parent folder permissions: " + parent.getAbsolutePath());
+        }
+
+        пока не решили, будет ли фича, которая сможет вызвать такое исключение
+         */
+
+
+        if (target.exists()) {
+            throw new AlreadyExistsException("A file with the same name already exists: " + newPath);
+        }
+
+        if(!folder.canWrite()) {
+            throw new PermissionDeniedException("Permission denied:" + path);
+        }
+
+        boolean renamed = folder.renameTo(target);
+        if (!renamed) {
+            throw new FileStorageException("Could not rename directory: " + newPath);
+        }
     }
 
-    private boolean deleteFolder(File folder) {
+    private boolean deleteFolder(File folder) { //TODO можно добавить вывод тру или фолз после каждого удаления, чтобы можно было понять, какой именно файл не смогли удалить
         if (folder.isDirectory()) {
             File[] files = folder.listFiles();
             if (files != null) {

@@ -1,3 +1,4 @@
+import Exceptions.FileStorageException;
 import FileWork.FileManager;
 import FileWork.JSON.JsonFileStorage;
 import SqlParser.QueriesStruct.Queries;
@@ -7,8 +8,7 @@ import SqlParser.Antlr.SQLProcessor;
 import java.util.Scanner;
 
 public class Main {
-    public static void main(String[] args)
-    {
+    public static void main(String[] args) throws FileStorageException {
         Scanner in = new Scanner(System.in); //TODO Handle input errors
         FileManager fileManager = new FileManager(new JsonFileStorage(), "testDB");
         String inputLine;

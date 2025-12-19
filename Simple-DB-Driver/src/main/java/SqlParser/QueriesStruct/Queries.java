@@ -18,7 +18,7 @@ public class Queries {
         }
 
         @Override
-        public boolean execute(FileManager fileManager) {
+        public boolean execute(FileManager fileManager) throws FileStorageException {
             return fileManager.createDB(databaseName);
         }
 
@@ -38,7 +38,7 @@ public class Queries {
         }
 
         @Override
-        public boolean execute(FileManager fileManager) {
+        public boolean execute(FileManager fileManager) throws FileStorageException {
             return fileManager.dropDB(databaseName);
         }
 
@@ -79,7 +79,7 @@ public class Queries {
         }
 
         @Override
-        public boolean execute(FileManager fileManager) {
+        public boolean execute(FileManager fileManager) throws FileStorageException {
             boolean flag;
 
             flag = fileManager.createTable(tableName);
@@ -88,21 +88,10 @@ public class Queries {
 
             for (ColumnMetadata curr : tableColumns) {
                 try {
-                    if (!fileManager.createColumn(tableName, curr)) {
-                        fileManager.dropTable(tableName);
-                        return false;
-                    }
+                    fileManager.createColumn(tableName, curr);
                 } catch (FileStorageException e) {
-                    fileManager.dropTable(tableName);
-                    if (e instanceof NoFileException) {
-                        System.err.println("File not found: " + e.getMessage());
-                    } else if (e instanceof EmptyFileException) {
-                        System.err.println("Empty file: " + e.getMessage());
-                    } else if (e instanceof PermissionDeniedException) {
-                        System.err.println("Permission denied: " + e.getMessage());
-                    } else if (e instanceof SerializationStorageException) {
-                        System.err.println("Deserialization error: " + e.getMessage());
-                    }
+                    fileManager.dropTable((tableName));
+                    System.err.println(e.getMessage());
                     return false;
                 }
             }
@@ -126,7 +115,7 @@ public class Queries {
         }
 
         @Override
-        public boolean execute(FileManager fileManager) {
+        public boolean execute(FileManager fileManager) throws FileStorageException {
             return fileManager.dropTable(tableName);
         }
 
@@ -146,7 +135,7 @@ public class Queries {
         }
 
         @Override
-        public boolean execute(FileManager fileManager) {
+        public boolean execute(FileManager fileManager) throws FileStorageException {
             return false;
         }
 
@@ -165,7 +154,7 @@ public class Queries {
             }
 
             @Override
-            public boolean execute(FileManager fileManager) {
+            public boolean execute(FileManager fileManager) throws FileStorageException {
                 return fileManager.renameTable(super.tableName, this.changeTableName);
             }
 
@@ -185,7 +174,7 @@ public class Queries {
             }
 
             @Override
-            public boolean execute(FileManager fileManager) {
+            public boolean execute(FileManager fileManager) throws FileStorageException {
                 return fileManager.createColumn(super.tableName, this.column);
             }
 
@@ -205,7 +194,7 @@ public class Queries {
             }
 
             @Override
-            public boolean execute(FileManager fileManager) {
+            public boolean execute(FileManager fileManager) throws FileStorageException {
                 return fileManager.deleteColumn(super.tableName, this.dropColumnName);
             }
 
@@ -227,7 +216,7 @@ public class Queries {
             }
 
             @Override
-            public boolean execute(FileManager fileManager) {
+            public boolean execute(FileManager fileManager) throws FileStorageException {
                 return fileManager.renameColumn(super.tableName, columnName, renameColumnName);
             }
 
@@ -255,7 +244,7 @@ public class Queries {
         }
 
         @Override
-        public boolean execute(FileManager fileManager) {
+        public boolean execute(FileManager fileManager) throws FileStorageException {
             //TODO пока вставляю все колонки, но потом нужно использовать только те что из запроса и понимать
             // какие можно вставить NULL, а какие нельзя и бросить исключение если не сходится кол-во
             TableMetadata tableMetadata = fileManager.loadTableMetadata(tableName);

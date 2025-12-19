@@ -1,5 +1,6 @@
 package FileWork.JSON;
 
+import Exceptions.FileStorageException;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -51,7 +52,7 @@ public class JsonFileStorageTest {
 
     @Test
     @DisplayName("Should successfully read JSON file")
-    void testReadFile_Success() throws IOException {
+    void testReadFile_Success() throws IOException, FileStorageException {
         // Given
         TestData testData = new TestData("John", 30);
         storage.writeFile(testFilePath, testData);

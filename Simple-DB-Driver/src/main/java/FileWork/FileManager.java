@@ -7,9 +7,7 @@ import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.Column;
 import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
-import Yadro.DataStruct.PrimaryKeyMap;
 
-import java.io.File;
 import java.util.Date;
 import java.util.Objects;
 
@@ -31,30 +29,25 @@ public class FileManager {
         this(someStorage, NO_USE_DB);
     }
 
-    public boolean createDB(String name) {
-        try {
-            Date current = new Date();
-            DatabaseMetadata databaseMetadata = new DatabaseMetadata(name, "1.0.0", "UTF-16", "Default", current, current);
+    public boolean createDB(String name) throws FileStorageException {
+        Date current = new Date();
+        DatabaseMetadata databaseMetadata = new DatabaseMetadata(name, "1.0.0", "UTF-16", "Default", current, current);
 
-            if (!fileStorage.createDirectory(PathManager.getDatabasePath(name))) {
-                return false;
-            }
+        fileStorage.createDirectory(PathManager.getDatabasePath(name));
 
-            fileStorage.writeFile(PathManager.getDatabaseMetadataPath(name), databaseMetadata);
+        fileStorage.writeFile(PathManager.getDatabaseMetadataPath(name), databaseMetadata);
 
-            return true;
-        } catch (FileStorageException ex) {
-            ex.printStackTrace(); //TODO: здесь лучше использовать логгер
-            return false;
-        }
+        return true;
     }
 
-    public boolean dropDB(String name) {
+    public boolean dropDB(String name) throws FileStorageException {
         if (Objects.equals(nameDB, name)) {
             nameDB = NO_USE_DB;
         }
 
-        return fileStorage.deleteDirectory(PathManager.getDatabasePath(name));
+        fileStorage.deleteDirectory(PathManager.getDatabasePath(name));
+
+        return true;
     }
 
     public boolean useDB(String nameDB) {
@@ -65,25 +58,21 @@ public class FileManager {
         return fileStorage.readFile(PathManager.getDatabasePath(nameDB), DatabaseMetadata.class);
     }
 
-    public boolean createTable(String tableName) {
+    public boolean createTable(String tableName) throws  FileStorageException {
         TableMetadata tableMetadata = new TableMetadata(tableName, 0, 0, 0);
 
-        try {
-            if (!fileStorage.createDirectory(PathManager.getTablePath(nameDB, tableName))) {
-                return false;
-            }
+        fileStorage.createDirectory(PathManager.getTablePath(nameDB, tableName));
 
-            fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, tableName), tableMetadata);
-
-            return true;
-        } catch (FileStorageException ex) {
-            ex.printStackTrace();
-            return false;
-        }
+        fileStorage.writeFile(
+                PathManager.getTableMetadataPath(nameDB, tableName),
+                tableMetadata
+        );
+        return true;
     }
 
-    public boolean dropTable(String tableName) {
-        return fileStorage.deleteDirectory(PathManager.getTablePath(nameDB, tableName));
+    public boolean dropTable(String tableName) throws FileStorageException {
+        fileStorage.deleteDirectory(PathManager.getTablePath(nameDB, tableName));
+        return true;
     }
 
 
@@ -91,22 +80,13 @@ public class FileManager {
         TableMetadata toChange = fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
         toChange.setName(changeTableName);
 
-        try {
-            if (!fileStorage.renameDirectory(PathManager.getTablePath(nameDB, tableName), PathManager.getTablePath(nameDB, changeTableName))) {
-                return false;
-            }
+        fileStorage.renameDirectory(PathManager.getTablePath(nameDB, tableName), PathManager.getTablePath(nameDB, changeTableName));
 
-            if (!fileStorage.deleteFile(PathManager.getTableMetadataPath(nameDB, changeTableName))) {
-                return false;
-            }
+        fileStorage.deleteFile(PathManager.getTableMetadataPath(nameDB, changeTableName));
 
-            fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, changeTableName), toChange);
+        fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, changeTableName), toChange);
 
-            return true;
-        } catch (FileStorageException ex) {
-            ex.printStackTrace();
-            return false;
-        }
+        return true;
 
     }
 
@@ -139,46 +119,35 @@ public class FileManager {
         return writeColumnFiles(tableName, columnMetadata, column, tableMetadata);
     }
 
-    public boolean saveColumn(String tableName, String columnName, Column column){
-        try {
-            fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, columnName), column);
-            return true;
-        } catch (FileStorageException ex) {
-            ex.printStackTrace();
-            return false;
-        }
+    public boolean saveColumn(String tableName, String columnName, Column column) throws FileStorageException {
+        fileStorage.writeFile(PathManager.getColumnPath(nameDB, tableName, columnName), column);
+        return true;
     }
 
     public ColumnMetadata loadColumnMetadata(String tableName, String columnName) throws FileStorageException {
         return fileStorage.readFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName), ColumnMetadata.class);
     }
 
-    public boolean saveColumnMetadata(String tableName, String columnName, ColumnMetadata columnMetadata)
-    {
-        try {
-            fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName), columnMetadata);
-            return true;
-        } catch (FileStorageException ex) {
-            ex.printStackTrace();
-            return false;
-        }
+    public boolean saveColumnMetadata(String tableName, String columnName, ColumnMetadata columnMetadata) throws FileStorageException {
+        fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName), columnMetadata);
+        return true;
     }
 
-    //этот метод обновлю, когда допишу другие классы исключения и изменю соответствующие методы
     public boolean deleteColumn(String tableName, String columnName) throws FileStorageException {
-        TableMetadata tableMetadata = fileStorage.readFile(PathManager.getTableMetadataPath(nameDB, tableName), TableMetadata.class);
+        TableMetadata tableMetadata = fileStorage.readFile(
+                PathManager.getTableMetadataPath(nameDB, tableName),
+                TableMetadata.class
+        );
+
         tableMetadata.setColumnCount(tableMetadata.getColumnCount() - 1);
         tableMetadata.deleteColumnName(columnName);
 
-        try {
-            fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, tableName), tableMetadata);
-        } catch (FileStorageException ex) {
-            ex.printStackTrace();
-            return false;
-        }
+        fileStorage.writeFile(PathManager.getTableMetadataPath(nameDB, tableName), tableMetadata);
 
-        return fileStorage.deleteFile(PathManager.getColumnPath(nameDB, tableName, columnName)) &&
-                fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName));
+        fileStorage.deleteFile(PathManager.getColumnPath(nameDB, tableName, columnName));
+        fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName));
+
+        return true;
     }
 
     public boolean renameColumn(String tableName, String columnName, String changeColumnName) throws FileStorageException {
@@ -186,15 +155,13 @@ public class FileManager {
                 getColumnMetadataPath(nameDB, tableName, columnName), ColumnMetadata.class);
         toChangeMeta.setName(changeColumnName);
 
-        try {
-            fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, changeColumnName), toChangeMeta);
-        } catch (FileStorageException ex) {
-            ex.printStackTrace();
-            return false;
-        }
+        fileStorage.writeFile(PathManager.getColumnMetadataPath(nameDB, tableName, changeColumnName), toChangeMeta);
 
-        return fileStorage.renameFile(PathManager.getColumnPath(nameDB, tableName, columnName), changeColumnName) &&
-                fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName));
+        fileStorage.renameFile(PathManager.getColumnPath(nameDB, tableName, columnName), changeColumnName);
+
+        fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName));
+
+        return true;
     }
 
     public String getNameDB() {
@@ -240,31 +207,16 @@ public class FileManager {
         }
     }
 
-    private boolean writeColumnFiles(String tableName, ColumnMetadata columnMetadata, Column column, TableMetadata tableMetadata) {
+    private boolean writeColumnFiles(String tableName, ColumnMetadata columnMetadata, Column column, TableMetadata tableMetadata) throws FileStorageException {
         String columnPath = PathManager.getColumnPath(nameDB, tableName, columnMetadata.getName());
         String columnMetadataPath = PathManager.getColumnMetadataPath(nameDB, tableName, columnMetadata.getName());
         String tableMetadataPath = PathManager.getTableMetadataPath(nameDB, tableName);
 
-        try {
-            fileStorage.writeFile(columnPath, column);
-        } catch (FileStorageException ex) {
-            ex.printStackTrace();
-            return false;
-        }
+        fileStorage.writeFile(columnPath, column);
 
-        try {
-            fileStorage.writeFile(columnMetadataPath, columnMetadata);
-        } catch (FileStorageException ex) {
-            ex.printStackTrace();
-            return false;
-        }
+        fileStorage.writeFile(columnMetadataPath, columnMetadata);
 
-        try {
-            fileStorage.writeFile(tableMetadataPath, tableMetadata);
-        } catch (FileStorageException ex) {
-            ex.printStackTrace();
-            return false;
-        }
+        fileStorage.writeFile(tableMetadataPath, tableMetadata);
 
         return true;
     }
