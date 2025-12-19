@@ -6,7 +6,8 @@ query : createDBStatement
       | createTableStatement
       | dropTableStatement
       | alterTableStatement
-      | insertTableStatement;
+      | insertTableStatement
+      | selectDataStatement;
 
 createDBStatement : CREATE DATABASE ifNotExists? name;
 dropDBStatement : DROP DATABASE name;
@@ -15,6 +16,11 @@ createTableStatement : CREATE TABLE ifNotExists? name ('(' column (',' column)* 
 dropTableStatement : DROP TABLE name;
 alterTableStatement : ALTER TABLE name alterAction;
 insertTableStatement : INSERT INTO tablename ('(' name (',' name)* ')')? VALUES ('(' data (',' data)* ')');
+selectDataStatement : SELECT selectCols FROM tablename whereClause?;
+
+selectCols : STAR | name(',' name)*;
+whereClause : WHERE name EQ value;
+value : ID;
 
 alterAction : addColumn
             | dropColumn
@@ -34,6 +40,12 @@ constraint : notNull | primaryKey | AUTOINCREMENT | UNIQUE | NULL | CHECK | DEFA
 name: NAME;
 tablename: NAME;
 data: ID;
+
+SELECT : 'SELECT';
+FROM : 'FROM';
+WHERE : 'WHERE';
+EQ : '=';
+STAR : '*';
 
 CREATE : 'CREATE';
 DROP : 'DROP';

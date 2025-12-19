@@ -4,10 +4,112 @@ import Exceptions.*;
 import FileWork.FileManager;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
+import SqlParser.Antlr.SQLParser;
 import Yadro.DataStruct.*;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Queries {
+
+    public static class SelectDataQuery implements QueryInterface {
+        private List<String>                       selectCols;
+        private final boolean                      isStar;
+        private final String                       tableName;
+        private final SQLParser.WhereClauseContext whereClause;
+
+        public SelectDataQuery(List<String> selectCols, Boolean isStar, String tableName, SQLParser.WhereClauseContext whereClause) {
+            this.selectCols = selectCols;
+            this.tableName = tableName;
+            this.whereClause = whereClause;
+            this.isStar = isStar;
+        }
+
+        @Override
+        public boolean execute(FileManager fileManager) throws FileStorageException{
+            //Грузим метадату нашей таблицы
+            TableMetadata tableMetadata              =   fileManager.loadTableMetadata(tableName);
+            List<String>  tableMetadataColumnNames   =   tableMetadata.getColumnNames();
+            int           tableMetadataColumnCount   =   tableMetadataColumnNames.size();
+
+            if(tableMetadataColumnCount == 0) {//Если у нас в таблице нет вообще ничего
+                //TODO Тут какой нить эксепшн
+                return false;
+            }
+            List<Integer> indicesOfSelectedRows = new ArrayList<>();
+            List<Column> columns = new ArrayList<>();
+            List<Column> selectedColumns = new ArrayList<>();
+
+            //Загружаем все столбцы из таблицы
+            for(String columnName : tableMetadataColumnNames) {
+                //TODO Тут используется файл менеджер, так что САФОНОВ ОПЛАТИТЬ(Соня сделать эксепшн)
+                columns.add(fileManager.loadColumn(tableName, columnName));
+            }
+            int columnSize = columns.getFirst().getData().size();
+
+            if(isStar) {
+                selectedColumns.addAll(columns);
+                for(int i = 0; i < columnSize; i++) {
+                    indicesOfSelectedRows.add(i);
+                }
+            }
+            else {
+                //Проверяем есть ли каждый выбранный столбец в нашей таблице
+                for(String columnName : selectCols) {
+                    if(!tableMetadataColumnNames.contains(columnName)) {
+                        //TODO Соня допилить эксепшн
+                        return false;
+                    }
+                }
+
+                //Обрабатываем WHERE если есть
+                if (whereClause != null) {
+                    String whereName = whereClause.name().getText();
+                    String whereValue = whereClause.value().getText();
+
+                    //TODO Тут используется файл менеджер, так что САФОНОВ ОПЛАТИТЬ(Соня сделать эксепшн)
+                    Column whereColumn = fileManager.loadColumn(tableName, whereName);
+
+                    ArrayList<String> whereColumnData = whereColumn.getData();
+                    //Пробегаем по столбцу whereColumn и добавляем индексы строк, которые удовлетворяют условиям WHERE
+                    for(int i = 0; i < columnSize; i++) {
+                        if(whereColumnData.get(i).equals(whereValue)) {
+                            indicesOfSelectedRows.add(i);
+                        }
+                    }
+                }
+                else { //Если WHERE нет, то indicesOfSelectedRows будет просто содержать индексы всех строк
+                    for(int i = 0; i < columnSize; i++) {
+                        indicesOfSelectedRows.add(i);
+                    }
+                }
+
+                for(String columnName : selectCols) {
+                    selectedColumns.add(fileManager.loadColumn(tableName, columnName));
+                }
+            }
+
+            //TODO вообще конечно в идеале делать красивый вывод. Я имею ввиду нормальное выравнивание колонок
+            int countRows = indicesOfSelectedRows.size();
+            int countCols = selectedColumns.size();
+            for(int i = 0; i < countRows; i++) {
+                for(int j = 0; j < countCols; j++) {
+                    int rowIndex = indicesOfSelectedRows.get(i);
+                    System.out.print(selectedColumns.get(j).getData().get(rowIndex) + "    ");
+                }
+                System.out.println();
+            }
+
+            return true;
+        }
+
+
+        //TODO Допилить здесь нормальное строковое представление
+        @Override
+        public String getStringVision(){
+            return "SELECT";
+        }
+
+    }
 
     public static class CreateDataBaseQuery implements QueryInterface
     {
