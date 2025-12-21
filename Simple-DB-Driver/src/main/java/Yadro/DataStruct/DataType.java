@@ -1,5 +1,8 @@
 package Yadro.DataStruct;
 
+import lombok.Getter;
+
+@Getter
 public enum DataType {
     NULL("NULL", Void.class, -1),
     INTEGER("INTEGER", Long.class, 8),
@@ -16,7 +19,4 @@ public enum DataType {
         this.defaultSize = defaultSize;
     }
 
-    public String getSqlType() { return sqlType; }
-    public Class<?> getJavaType() { return javaType; }
-    public int getDefaultSize() { return defaultSize; }
 }

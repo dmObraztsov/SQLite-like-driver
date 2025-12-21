@@ -1,22 +1,16 @@
 package Yadro.DataStruct;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.ArrayList;
 
+@Setter
+@Getter
 public class Column {
     private ArrayList<String> data = new ArrayList<>();
 
     public Column(){}
 
-    public ArrayList<String> getData() {
-        return data;
-    }
-
-    public void setData(ArrayList<String> data) {
-        this.data = data;
-    }
-
-    public boolean addData(String content) {
-        data.add(content);
-        return true;
-    }
+    public void addData(int index, String content) { data.add(index, content); }
 }

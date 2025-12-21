@@ -7,12 +7,14 @@ import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.Column;
 import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
+import lombok.Getter;
 
 import java.util.Date;
 import java.util.Objects;
 
 public class FileManager {
     private final FileStorage fileStorage;
+    @Getter
     private String nameDB;
     private static final String NO_USE_DB = "";
 
@@ -62,6 +64,7 @@ public class FileManager {
         TableMetadata tableMetadata = new TableMetadata(tableName, 0, 0, 0);
 
         fileStorage.createDirectory(PathManager.getTablePath(nameDB, tableName));
+        fileStorage.createDirectory(PathManager.getTableDataPath(nameDB, tableName));
 
         fileStorage.writeFile(
                 PathManager.getTableMetadataPath(nameDB, tableName),
@@ -162,10 +165,6 @@ public class FileManager {
         fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName));
 
         return true;
-    }
-
-    public String getNameDB() {
-        return nameDB;
     }
 
     public boolean setNameDB(String nameDB) {

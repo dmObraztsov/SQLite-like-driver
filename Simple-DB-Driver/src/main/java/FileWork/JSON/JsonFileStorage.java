@@ -18,41 +18,44 @@ public class JsonFileStorage implements FileStorage {
 
     @Override
     public <T> T readFile(String path, Class<T> type) throws FileStorageException {
-        File file = new File(path);
-
-        if (!file.exists()) {
-            throw new NoFileException("File not found:" + path);
-        }
-
-        if (file.length() == 0) {
-            throw new EmptyFileException("Empty File:" + path);
-        }
-
-        if (!file.canRead()) {
-            throw new PermissionDeniedException("Permission denied:" + path);
-        }
-
         try {
+
+            File file = new File(path);
+
+            if (!file.exists()) {
+                throw new NoFileException("File not found:" + path);
+            }
+
+            if (file.length() == 0) {
+                throw new EmptyFileException("Empty File:" + path);
+            }
+
+            if (!file.canRead()) {
+                throw new PermissionDeniedException("Permission denied:" + path);
+            }
+
             return mapper.readValue(file, type);
-        } catch (IOException e) { //mapper выбрасывает IO, обернем
+
+        } catch (IOException e) {
             throw new SerializationStorageException("Could not read file: " + path, e);
         }
     }
 
     @Override
     public <T> void writeFile(String path, T content) throws FileStorageException {
-        File file = new File(path);
-
-        if (!file.exists()) {
-            throw new NoFileException("File not found:" + path);
-        }
-
-        if (!file.canWrite()) {
-            throw new PermissionDeniedException("Permission denied:" + path);
-        }
-
         try {
+            File file = new File(path);
+
             mapper.writeValue(file, content);
+
+            if (!file.exists()) {
+                throw new NoFileException("File not found:" + path);
+            }
+
+            if (!file.canWrite()) {
+                throw new PermissionDeniedException("Permission denied:" + path);
+            }
+
             System.out.println("File successfully written: " + file.getAbsolutePath());
         } catch (IOException e) {
             throw new SerializationStorageException("Could not write file: " + path, e);
@@ -86,16 +89,6 @@ public class JsonFileStorage implements FileStorage {
             throw new PermissionDeniedException("Permission denied:" + path);
         }
 
-        /*
-        File parent = target.getParentFile();
-        if (parent != null && !parent.canWrite()) {
-            throw new PermissionDeniedException("Permission denied: cannot write to directory: " + parent.getPath());
-        }
-
-        пока не определились нужна ли фича под которую написано исключение,
-        пока пуст будет закомментирован
-         */
-
         if (target.exists()) {
             throw new AlreadyExistsException("File with new name already exists:" + newName);
         }
@@ -122,10 +115,10 @@ public class JsonFileStorage implements FileStorage {
             }
         }
 
-        File parent = folder.getParentFile(); // родительская директория folder
-        if (parent != null && !parent.canWrite()) {
-            throw new PermissionDeniedException("Cannot write to parent directory: " + parent.getAbsolutePath());
-        }
+//        File parent = folder.getParentFile();
+//        if (parent != null && !parent.canWrite()) {
+//            throw new PermissionDeniedException("Cannot write to parent directory: " + parent.getAbsolutePath());
+//        }
 
         boolean created = folder.mkdirs();
         if (!created) {
@@ -163,16 +156,6 @@ public class JsonFileStorage implements FileStorage {
         if(!folder.exists()) {
             throw new NoFileException("File not found: " + path);
         }
-
-        /*
-        File parent = folder.getParentFile();
-        if (parent != null && !parent.canWrite()) {
-            throw new PermissionDeniedException("Cannot rename directory due to parent folder permissions: " + parent.getAbsolutePath());
-        }
-
-        пока не решили, будет ли фича, которая сможет вызвать такое исключение
-         */
-
 
         if (target.exists()) {
             throw new AlreadyExistsException("A file with the same name already exists: " + newPath);
