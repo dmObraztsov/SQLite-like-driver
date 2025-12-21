@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/SQLite-like-driver.iml" filepath="$PROJECT_DIR$/.idea/SQLite-like-driver.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Simple-DB-Driver.main.iml" filepath="$PROJECT_DIR$/.idea/modules/Simple-DB-Driver.main.iml" />
     </modules>
   </component>
 </project>
