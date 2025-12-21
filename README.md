@@ -86,8 +86,8 @@ gradlew.bat run
 
 Создание и выбор базы данных:
 ```bash
-CREATE DATABASE testDB;
-USE testDB;
+CREATE DATABASE testDB
+USE testDB
 ```
 
 Создание таблицы:
@@ -96,79 +96,71 @@ CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
     age INTEGER
-);
+)
 ```
 
 Добавление столбца:
 ```bash
-ALTER TABLE users ADD COLUMN email TEXT;
+ALTER TABLE users ADD COLUMN email TEXT
 ```
 
 Удаление столбца:
 ```bash
-ALTER TABLE users DROP COLUMN email;
+ALTER TABLE users DROP COLUMN email
 ```
 
 Удаление таблицы:
 ```bash
-DROP TABLE users;
+DROP TABLE users
 ```
 
 Удаление базы данных:
 ```bash
-DROP DATABASE testDB;
+DROP DATABASE testDB
 ```
 
 ## Структура проекта
 
 Simple-DB-Driver/
-│
-├─ .gradle/                  # Внутренние файлы Gradle
-├─ .idea/                    # Настройки IDE (IntelliJ IDEA)
-├─ build/                    # Сборка проекта
-├─ gradle/                   # Скрипты Gradle
-├─ gradlew, gradlew.bat      # Wrapper для Gradle
-├─ settings.gradle           # Конфигурация Gradle
-├─ build.gradle              # Сборка проекта
-│
-├─ src/main/java/            # Исходный код проекта
-│   ├─ Exceptions/           # Пользовательские исключения
-│   │   ├─ AlreadyExistsException.java
-│   │   ├─ EmptyFileException.java
-│   │   ├─ FileManagerException.java
-│   │   ├─ FileStorageException.java
-│   │   ├─ FileTypeException.java
-│   │   ├─ NoDataBaseException.java
-│   │   ├─ NoFileException.java
-│   │   ├─ PermissionDeniedException.java
-│   │   └─ SerializationStorageException.java
-│   │
-│   ├─ FileWork/             # Работа с файловым хранилищем
-│   │   ├─ JSON/             # Реализация JSON-хранилища
-│   │   │   ├─ JacksonConfig.java
-│   │   │   └─ JsonFileStorage.java
-│   │   ├─ Metadata/         # Метаданные базы, таблиц и колонок
-│   │   ├─ FileManager.java  # Основной класс работы с БД и таблицами
-│   │   ├─ FileStorage.java  # Интерфейс работы с файловым хранилищем
-│   │   └─ PathManager.java  # Генерация путей к файлам БД и таблиц
-│   │
-│   ├─ SqlParser/            # SQL-парсер и структура запросов
-│   │   ├─ Antlr/            # Генерированные ANTLR-файлы и парсер
-│   │   │   └─ файлы грамматики и интерпретаторы
-│   │   ├─ QueriesStruct/    # Классы запросов и интерфейсы
-│   │   │   ├─ Queries.java
-│   │   │   └─ QueryInterface.java
-│   │
-│   ├─ DataStruct/           # Структуры данны
-│   └─ Main.java             # Точка входа, консольный интерфейс
-│
-├─ src/test/java/            # Тесты проекта
-│   ├─ ...
-│
-├─ src/main/antlr/SQL.g4     # Файл грамматики SQL для ANTLR
-├─ data/                     # Данные для примера работы приложения
-│   ├─ ...
-└─ gen/                      # Сгенерированные ANTLR-классы
+
+- .gradle/                  # Внутренние файлы Gradle
+- .idea/                    # Настройки IDE (IntelliJ IDEA)
+- build/                    # Сборка проекта
+- gradle/                   # Скрипты Gradle
+- gradlew, gradlew.bat      # Wrapper для Gradle
+- settings.gradle           # Конфигурация Gradle
+- build.gradle              # Сборка проекта
+
+- src/main/java/            # Исходный код проекта
+    - Exceptions/           # Пользовательские исключения
+        - ...
+    - FileWork/             # Работа с файловым хранилищем
+        - JSON/             # Реализация JSON-хранилища
+            - JacksonConfig.java
+            - JsonFileStorage.java
+        - Metadata/         # Метаданные базы, таблиц и колонок
+        - FileManager.java  # Основной класс работы с БД и таблицами
+        - FileStorage.java  # Интерфейс работы с файловым хранилищем
+        - PathManager.java  # Генерация путей к файлам БД и таблиц
+
+    - SqlParser/            # SQL-парсер и структура запросов
+        - Antlr/            # Генерированные ANTLR-файлы и парсер
+            - файлы грамматики и интерпретаторы
+        - QueriesStruct/    # Классы запросов и интерфейсы
+            - Queries.java
+            - QueryInterface.java
+
+    - DataStruct/           # Структуры данны
+    - Main.java             # Точка входа, консольный интерфейс
+
+- src/test/java/            # Тесты проекта
+    - ...
+
+- src/main/antlr/SQL.g4     # Файл грамматики SQL для ANTLR
+- data/                     # Данные для примера работы приложения
+    - ...
+- gen/   
+    - ...                   # Сгенерированные ANTLR-классы
 
 ## Исключения 
 
