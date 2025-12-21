@@ -1,15 +1,19 @@
 package FileWork.Metadata;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 
+@Setter
+@Getter
 public class TableMetadata {
     private String name;
     private int columnCount;
     private int countAutoIncrements;
     private int countDefaults;
-    private ArrayList<String> columnNames;
+    private ArrayList<String> columnNames= new ArrayList<>();
 
     public TableMetadata(){
     }
@@ -20,47 +24,6 @@ public class TableMetadata {
         this.columnCount = columnCount;
         this.countAutoIncrements = countAutoIncrements;
         this.countDefaults = countDefaults;
-        columnNames = new ArrayList<>();
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public int getColumnCount() {
-        return columnCount;
-    }
-
-    public int getCountAutoIncrements() {
-        return countAutoIncrements;
-    }
-
-    public int getCountDefaults() {
-        return countDefaults;
-    }
-
-    public ArrayList<String> getColumnNames() {
-        return columnNames;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setColumnCount(int columnCount) {
-        this.columnCount = columnCount;
-    }
-
-    public void setCountAutoIncrements(int countAutoIncrements) {
-        this.countAutoIncrements = countAutoIncrements;
-    }
-
-    public void setCountDefaults(int countDefaults) {
-        this.countDefaults = countDefaults;
-    }
-
-    public void setColumnNames(ArrayList<String> columnNames) {
-        this.columnNames = columnNames;
     }
 
     @JsonIgnore

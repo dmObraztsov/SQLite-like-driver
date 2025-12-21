@@ -4,9 +4,13 @@ import Yadro.DataStruct.Collate;
 import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 
+@Setter
+@Getter
 public class ColumnMetadata {
     private String name;
     private DataType type;
@@ -14,53 +18,13 @@ public class ColumnMetadata {
     private ArrayList<Constraints> constraints = new ArrayList<>();
     private Collate collate;
 
-    public ColumnMetadata(String testColumnName, String string, boolean b, boolean b1) {}
+    public ColumnMetadata() {}
 
     public ColumnMetadata(String name, DataType type, int size, ArrayList<Constraints> constraints, Collate collate) {
         this.name = name;
         this.type = type;
         this.size = size;
         this.constraints = constraints;
-        this.collate = collate;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public DataType getType() {
-        return type;
-    }
-
-    public int getSize() {
-        return size;
-    }
-
-    public ArrayList<Constraints> getConstraints() {
-        return constraints;
-    }
-
-    public Collate getCollate() {
-        return collate;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setType(DataType type) {
-        this.type = type;
-    }
-
-    public void setSize(int size) {
-        this.size = size;
-    }
-
-    public void setConstraints(ArrayList<Constraints> constraints) {
-        this.constraints = constraints;
-    }
-
-    public void setCollate(Collate collate) {
         this.collate = collate;
     }
 

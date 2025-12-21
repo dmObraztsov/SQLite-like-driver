@@ -6,12 +6,10 @@ import SqlParser.QueriesStruct.QueryInterface;
 import Yadro.DataStruct.Collate;
 import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
-import java.util.ArrayList;
+import org.antlr.v4.runtime.RuleContext;
 
-/**
- * Про то как тут все работает, лучше мне лично объяснить, но вкратце - библиотека генерит свои классы, а нам в них
- * просто нужно добавить реализацию прохода по дереву токенов
- */
+import java.util.ArrayList;
+import java.util.List;
 
 public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     @Override
@@ -130,6 +128,23 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
         Collate collate = null; // TODO
         return new ColumnMetadata(columnContext.name().getText(), dataType, 0, constraints, collate);
+    }
+
+
+    @Override
+    public QueryInterface visitSelectDataStatement(SQLParser.SelectDataStatementContext ctx) {
+        boolean isStar = ctx.selectCols().STAR() != null;
+
+        List<String> columns = null;
+        SQLParser.WhereClauseContext whereClause = ctx.whereClause();
+        String tableName = ctx.tablename().getText();
+
+        if (!isStar) {
+            columns = ctx.selectCols().name().stream().map(RuleContext::getText).toList();
+        }
+
+        if (whereClause != null) return new Queries.SelectDataQuery(columns, isStar, tableName, whereClause.name().getText(), whereClause.value().getText());
+        else return new Queries.SelectDataQuery(columns, isStar, tableName, null, null);
     }
 
 }

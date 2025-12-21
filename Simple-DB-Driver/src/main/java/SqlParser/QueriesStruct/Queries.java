@@ -6,6 +6,8 @@ import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.*;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.IntStream;
 
 public class Queries {
 
@@ -20,11 +22,6 @@ public class Queries {
         @Override
         public boolean execute(FileManager fileManager) throws FileStorageException {
             return fileManager.createDB(databaseName);
-        }
-
-        @Override
-        public String getStringVision() {
-            return "Creating database with mame " + "\"" + databaseName + "\"";
         }
     }
 
@@ -41,11 +38,6 @@ public class Queries {
         public boolean execute(FileManager fileManager) throws FileStorageException {
             return fileManager.dropDB(databaseName);
         }
-
-        @Override
-        public String getStringVision() {
-            return "Drop database with mame " + "\"" + databaseName + "\"";
-        }
     }
 
     public static class UseDataBaseQuery implements QueryInterface
@@ -60,11 +52,6 @@ public class Queries {
         @Override
         public boolean execute(FileManager fileManager) {
             return fileManager.useDB(databaseName);
-        }
-
-        @Override
-        public String getStringVision() {
-            return "Use database with mame " + "\"" + databaseName + "\"";
         }
     }
 
@@ -95,13 +82,7 @@ public class Queries {
                     return false;
                 }
             }
-
             return true;
-        }
-
-        @Override
-        public String getStringVision() {
-            return "Creating table with mame " + "\"" + tableName + "\"";
         }
     }
 
@@ -117,11 +98,6 @@ public class Queries {
         @Override
         public boolean execute(FileManager fileManager) throws FileStorageException {
             return fileManager.dropTable(tableName);
-        }
-
-        @Override
-        public String getStringVision() {
-            return "Drop table with mame " + "\"" + tableName + "\"";
         }
     }
 
@@ -139,11 +115,6 @@ public class Queries {
             return false;
         }
 
-        @Override
-        public String getStringVision() {
-            return "Alter table with mame " + "\"" + tableName + "\"";
-        }
-
         public static class AlterRenameTableQuery extends AlterTableQuery
         {
             private final String changeTableName;
@@ -156,11 +127,6 @@ public class Queries {
             @Override
             public boolean execute(FileManager fileManager) throws FileStorageException {
                 return fileManager.renameTable(super.tableName, this.changeTableName);
-            }
-
-            @Override
-            public String getStringVision() {
-                return "Rename table with mame " + "\"" + super.tableName + "to " + this.changeTableName + "\"";
             }
         }
 
@@ -177,11 +143,6 @@ public class Queries {
             public boolean execute(FileManager fileManager) throws FileStorageException {
                 return fileManager.createColumn(super.tableName, this.column);
             }
-
-            @Override
-            public String getStringVision() {
-                return "Add column to table with mame " + "\"" + super.tableName + "\"";
-            }
         }
 
         public static class AlterDropColumnQuery extends AlterTableQuery
@@ -196,11 +157,6 @@ public class Queries {
             @Override
             public boolean execute(FileManager fileManager) throws FileStorageException {
                 return fileManager.deleteColumn(super.tableName, this.dropColumnName);
-            }
-
-            @Override
-            public String getStringVision() {
-                return "Add column to table with mame " + "\"" + super.tableName + "\"";
             }
         }
 
@@ -219,11 +175,6 @@ public class Queries {
             public boolean execute(FileManager fileManager) throws FileStorageException {
                 return fileManager.renameColumn(super.tableName, columnName, renameColumnName);
             }
-
-            @Override
-            public String getStringVision() {
-                return "Add column to table with mame " + "\"" + super.tableName + "\"";
-            }
         }
     }
 
@@ -240,43 +191,46 @@ public class Queries {
             this.values = new ArrayList<>(values);
         }
 
-        public record ColumnValue(String value, String column) {
-        }
-
         @Override
-        public boolean execute(FileManager fileManager) throws FileStorageException {
-            //TODO пока вставляю все колонки, но потом нужно использовать только те что из запроса и понимать
-            // какие можно вставить NULL, а какие нельзя и бросить исключение если не сходится кол-во
-            TableMetadata tableMetadata = fileManager.loadTableMetadata(tableName);
-            columns = new ArrayList<>(tableMetadata.getColumnNames());
+        public boolean execute(FileManager fileManager){
 
-            ArrayList<ColumnValue> checkedRowToAdd = new ArrayList<>();
-            int j = 0;
+            try {
+                TableMetadata tableMetadata = fileManager.loadTableMetadata(tableName);
+                columns = new ArrayList<>(tableMetadata.getColumnNames());
 
-            for(String curr : columns) {
-                Column column = fileManager.loadColumn(tableName, curr);
-                ColumnMetadata columnMetadata = fileManager.loadColumnMetadata(tableName, curr);
+                int index = 0;
+                int j = 0;
 
-                String value;
-
-                value = values.get(j++);
-
-                if(fullCheck(column, columnMetadata, value)) {
-                    checkedRowToAdd.add(new ColumnValue(value, curr));
-
+                for(String curr : columns) {
+                    ColumnMetadata  columnMetadata = fileManager.loadColumnMetadata(tableName, curr);
+                    if(columnMetadata.getSize() > index) index = columnMetadata.getSize();
                 }
+
+                for(String curr : columns) {
+                    Column column = fileManager.loadColumn(tableName, curr);
+                    ColumnMetadata columnMetadata = fileManager.loadColumnMetadata(tableName, curr);
+
+                    String value;
+                    value = values.get(j++);
+
+                    if(fullCheck(column, columnMetadata, value)) {
+                        columnMetadata.incrementSize();
+                        column.addData(index, value);
+
+                        fileManager.saveColumnMetadata(tableName, curr, columnMetadata);
+                        fileManager.saveColumn(tableName, curr, column);
+                    }
+                }
+
+                return true;
+            } catch (FileStorageException e) {
+                System.out.println(e.getMessage());
+                return false;
             }
-
-            return IndexWorker.AddToDataBase(checkedRowToAdd, fileManager, tableName);
-        }
-
-        @Override
-        public String getStringVision() {
-            return "";
         }
 
         private boolean fullCheck(Column column, ColumnMetadata columnMetadata, String content) {
-            return (providedType(content) == columnMetadata.getType()) && checkConstraints(column, columnMetadata, content);
+            return (providedType(content) == columnMetadata.getType()) && checkConstraints(columnMetadata, content);
         }
 
         private DataType providedType(String content) {
@@ -287,20 +241,91 @@ public class Queries {
             else return null;
         }
 
-        private boolean checkConstraints(Column column, ColumnMetadata columnMetadata, String content) {
-            for(Constraints curr : columnMetadata.getConstraints()) {
-                switch (curr) {
-                    case UNIQUE:
-                        if(column.getData().contains(content)) return false;
-                        break;
-                    case NOT_NULL:
-                        if(content == null) return false;
-                        break;
-                    case CHECK:                        //TODO
-                        break;
-                }
-            }
+        private boolean checkConstraints(ColumnMetadata columnMetadata, String content) {
             return true;
+        }
+    }
+
+    public static class SelectDataQuery implements QueryInterface {
+        private final List<String>                 selectCols;
+        private final boolean                      isStar;
+        private final String                       tableName;
+        private final String                       whereName;
+        private final String                       whereValue;
+
+        public SelectDataQuery(List<String> selectCols, Boolean isStar, String tableName, String whereName, String whereValue) {
+            this.selectCols = selectCols;
+            this.tableName = tableName;
+            this.whereName = whereName;
+            this.whereValue = whereValue;
+            this.isStar = isStar;
+        }
+
+        @Override
+        public boolean execute(FileManager fileManager){
+            try {
+                TableMetadata tableMetadata              =   fileManager.loadTableMetadata(tableName);
+                List<String>  tableMetadataColumnNames   =   tableMetadata.getColumnNames();
+
+                if(tableMetadataColumnNames.isEmpty()) {
+                    return false;
+                }
+                List<Integer> indicesOfSelectedRows = new ArrayList<>();
+                List<Column> columns = new ArrayList<>();
+                List<Column> selectedColumns = new ArrayList<>();
+
+                for(String columnName : tableMetadataColumnNames) {
+                    columns.add(fileManager.loadColumn(tableName, columnName));
+                }
+
+                int columnSize = columns.getFirst().getData().size();
+
+                if(isStar) {
+                    selectedColumns.addAll(columns);
+                    IntStream.range(0, columnSize).forEach(indicesOfSelectedRows::add);
+                }
+
+                else {
+                    for(String columnName : selectCols) {
+                        if(!tableMetadataColumnNames.contains(columnName)) {
+                            return false;
+                        }
+                    }
+
+                    if (whereName != null && whereValue != null) {
+                        Column whereColumn = fileManager.loadColumn(tableName, whereName);
+
+                        ArrayList<String> whereColumnData = whereColumn.getData();
+                        for(int i = 0; i < columnSize; i++) {
+                            if(whereColumnData.get(i).equals(whereValue)) {
+                                indicesOfSelectedRows.add(i);
+                            }
+                        }
+                    }
+                    else IntStream.range(0, columnSize).forEach(indicesOfSelectedRows::add);
+
+                    for(String columnName : selectCols) {
+                        selectedColumns.add(fileManager.loadColumn(tableName, columnName));
+                    }
+                }
+
+                print(indicesOfSelectedRows, selectedColumns);
+                return true;
+            } catch (FileStorageException e) {
+                System.out.println(e.getMessage());
+                return false;
+            }
+        }
+
+        private void print(List<Integer> indicesOfSelectedRows, List<Column> selectedColumns) {
+            int countCols = selectedColumns.size();
+            for (Integer indicesOfSelectedRow : indicesOfSelectedRows) {
+                for (int j = 0; j < countCols; j++) {
+                    int rowIndex = indicesOfSelectedRow;
+                    System.out.print(selectedColumns.get(j).getData().get(rowIndex) + "    ");
+                }
+                System.out.println();
+            }
         }
     }
 }

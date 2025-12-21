@@ -5,6 +5,4 @@ import FileWork.FileManager;
 
 public interface QueryInterface {
     boolean execute(FileManager fileManager) throws FileStorageException;
-
-    String getStringVision();
 }

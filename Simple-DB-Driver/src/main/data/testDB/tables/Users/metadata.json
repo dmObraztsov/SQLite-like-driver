@@ -1,1 +1,7 @@
-{"name":"Users","columnCount":2,"countAutoIncrements":0,"countDefaults":0,"columnNames":["id","name"]}
+{
+  "name" : "Users",
+  "columnCount" : 2,
+  "countAutoIncrements" : 0,
+  "countDefaults" : 0,
+  "columnNames" : [ "id", "name" ]
+}

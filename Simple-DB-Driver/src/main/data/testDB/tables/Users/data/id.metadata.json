@@ -1,1 +1,5 @@
-{"name":"id","type":"INTEGER","size":1,"constraints":["PRIMARY_KEY"],"collate":null}
+{
+  "name" : "id",
+  "type" : "INTEGER",
+  "size" : 2
+}
