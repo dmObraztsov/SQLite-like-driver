@@ -7,7 +7,8 @@ query : createDBStatement
       | dropTableStatement
       | alterTableStatement
       | insertTableStatement
-      | selectDataStatement;
+      | selectDataStatement
+      | joinTableStatement;
 
 createDBStatement : CREATE DATABASE ifNotExists? name;
 dropDBStatement : DROP DATABASE name;
@@ -17,9 +18,12 @@ dropTableStatement : DROP TABLE name;
 alterTableStatement : ALTER TABLE name alterAction;
 insertTableStatement : INSERT INTO tablename ('(' name (',' name)* ')')? VALUES ('(' data (',' data)* ')');
 selectDataStatement : SELECT selectCols FROM tablename whereClause?;
+joinTableStatement : SELECT joinCols FROM tablename JOIN tablename onClause;
 
 selectCols : STAR | name(',' name)*;
+joinCols : longName(',' longName)*;
 whereClause : WHERE name EQ value;
+onClause : ON longName EQ longName;
 value : ID;
 
 alterAction : addColumn
@@ -38,15 +42,18 @@ primaryKey : PRIMARY KEY;
 column : name TYPE constraint*;
 constraint : notNull | primaryKey | AUTOINCREMENT | UNIQUE | NULL | CHECK | DEFAULT;
 name: NAME;
+longName: NAME DOT NAME;
 tablename: NAME;
 data: ID;
 
 SELECT : 'SELECT';
 FROM : 'FROM';
 WHERE : 'WHERE';
+JOIN : 'JOIN';
+ON : 'ON';
 EQ : '=';
 STAR : '*';
-
+DOT : '.';
 CREATE : 'CREATE';
 DROP : 'DROP';
 USE : 'USE';

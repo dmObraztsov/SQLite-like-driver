@@ -49,4 +49,8 @@ public class TableMetadata {
     {
         this.countDefaults++;
     }
+
+    public void setTableName(String tableName) {
+
+    }
 }

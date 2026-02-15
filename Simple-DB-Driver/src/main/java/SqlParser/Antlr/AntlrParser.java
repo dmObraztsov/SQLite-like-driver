@@ -50,34 +50,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     }
 
     @Override
-    public QueryInterface visitAlterTableStatement(SQLParser.AlterTableStatementContext ctx) {
-        String tableName = ctx.name().getText();
-        SQLParser.AlterActionContext alterAction = ctx.alterAction();
-
-        if (alterAction.renameTable() != null) {
-            String newTableName = alterAction.renameTable().name().getText();
-            return new Queries.AlterTableQuery.AlterRenameTableQuery(tableName, newTableName);
-        }
-
-        else if (alterAction.addColumn() != null) {
-            SQLParser.ColumnContext columnContext = alterAction.addColumn().column();
-            ColumnMetadata column = parseColumn(columnContext);
-            return new Queries.AlterTableQuery.AlterAddColumnQuery(tableName, column);
-        }
-        else if (alterAction.dropColumn() != null) {
-            String columnName = alterAction.dropColumn().name().getText();
-            return new Queries.AlterTableQuery.AlterDropColumnQuery(tableName, columnName);
-        }
-        else if (alterAction.renameColumn() != null) {
-            String oldColumnName = alterAction.renameColumn().name(0).getText();
-            String newColumnName = alterAction.renameColumn().name(1).getText();
-            return new Queries.AlterTableQuery.AlterRenameColumnQuery(tableName, oldColumnName, newColumnName);
-        }
-
-        return new Queries.AlterTableQuery(tableName);
-    }
-
-    @Override
     public QueryInterface visitInsertTableStatement(SQLParser.InsertTableStatementContext ctx) {
         String tableName = ctx.tablename().getText();
         ArrayList<String> columns = new ArrayList<>();
@@ -92,6 +64,23 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         return new Queries.InsertTableQuery(tableName, columns, values);
+    }
+
+    @Override
+    public QueryInterface visitJoinTableStatement(SQLParser.JoinTableStatementContext ctx) {
+        String table1Name = ctx.tablename(0).getText();
+        String table2Name = ctx.tablename(1).getText();
+
+        List<String> columns1 = new ArrayList<>();
+        List<String> columns2 = new ArrayList<>();
+
+        columns1.add(ctx.joinCols().longName(0).getText());
+        columns2.add(ctx.joinCols().longName(1).getText());
+
+        String leftJoinCol = ctx.onClause().longName(0).getText();
+        String rightJoinCol = ctx.onClause().longName(1).getText();
+
+        return new Queries.JoinTableQuery(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol);
     }
 
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {
