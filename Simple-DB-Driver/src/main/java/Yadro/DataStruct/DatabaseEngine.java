@@ -34,10 +34,6 @@ public class DatabaseEngine {
     }
 
     public List<Row> select(String tableName, List<String> columns, boolean isStar, String whereCol, String whereVal) throws Exception {
-        if (!fileManager.tableExists(tableName)) {
-            throw new Exception("Table " + tableName + " does not exist");
-        }
-
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
         List<String> targetColumns = isStar ? tableMeta.getColumnNames() : columns;
 
@@ -67,18 +63,23 @@ public class DatabaseEngine {
     }
 
     public List<Row> join(String table1Name, List<String> columns1, String table2Name, List<String> columns2, String leftJoinCol, String rightJoinCol) throws Exception {
-        List<Row> leftTable = select(table1Name, columns1, false, null, null);
-        List<Row> rightTable = select(table2Name, columns2, false, null, null);
+        List<Row> leftTable = select(table1Name, null, true, null, null);
+        List<Row> rightTable = select(table2Name, null, true, null, null);
 
         List<Row> joinedRows = new ArrayList<>();
 
         for (Row leftRow : leftTable) {
             for (Row rightRow : rightTable) {
-                if (leftRow.get(leftJoinCol).equals(rightRow.get(rightJoinCol))) {
+                String left = leftRow.get(leftJoinCol);
+                String right = rightRow.get(rightJoinCol);
+                if ((left == null) || (right == null)) {
+                    continue;
+                }
 
+                if (left.equals(right)) {
                     Map<String, String> combinedValues = new HashMap<>();
-                    combinedValues.putAll(leftRow.getValuesMap());
-                    combinedValues.putAll(rightRow.getValuesMap());
+                    combinedValues.putAll(leftRow.getValuesMap(columns1));
+                    combinedValues.putAll(rightRow.getValuesMap(columns2));
 
                     joinedRows.add(new Row(combinedValues));
                 }

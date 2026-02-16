@@ -67,6 +67,22 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     }
 
     @Override
+    public QueryInterface visitSelectDataStatement(SQLParser.SelectDataStatementContext ctx) {
+        boolean isStar = ctx.selectCols().STAR() != null;
+
+        List<String> columns = null;
+        SQLParser.WhereClauseContext whereClause = ctx.whereClause();
+        String tableName = ctx.tablename().getText();
+
+        if (!isStar) {
+            columns = ctx.selectCols().name().stream().map(RuleContext::getText).toList();
+        }
+
+        if (whereClause != null) return new Queries.SelectDataQuery(columns, isStar, tableName, whereClause.name().getText(), whereClause.value().getText());
+        else return new Queries.SelectDataQuery(columns, isStar, tableName, null, null);
+    }
+
+    @Override
     public QueryInterface visitJoinTableStatement(SQLParser.JoinTableStatementContext ctx) {
         String table1Name = ctx.tablename(0).getText();
         String table2Name = ctx.tablename(1).getText();
@@ -74,11 +90,11 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         List<String> columns1 = new ArrayList<>();
         List<String> columns2 = new ArrayList<>();
 
-        columns1.add(ctx.joinCols().longName(0).getText());
-        columns2.add(ctx.joinCols().longName(1).getText());
+        columns1.add(ctx.joinCols().longName(0).NAME(1).getText());
+        columns2.add(ctx.joinCols().longName(1).NAME(1).getText());
 
-        String leftJoinCol = ctx.onClause().longName(0).getText();
-        String rightJoinCol = ctx.onClause().longName(1).getText();
+        String leftJoinCol = ctx.onClause().longName(0).NAME(1).getText();
+        String rightJoinCol = ctx.onClause().longName(1).NAME(1).getText();
 
         return new Queries.JoinTableQuery(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol);
     }
@@ -117,23 +133,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
         Collate collate = null; // TODO
         return new ColumnMetadata(columnContext.name().getText(), dataType, 0, constraints, collate);
-    }
-
-
-    @Override
-    public QueryInterface visitSelectDataStatement(SQLParser.SelectDataStatementContext ctx) {
-        boolean isStar = ctx.selectCols().STAR() != null;
-
-        List<String> columns = null;
-        SQLParser.WhereClauseContext whereClause = ctx.whereClause();
-        String tableName = ctx.tablename().getText();
-
-        if (!isStar) {
-            columns = ctx.selectCols().name().stream().map(RuleContext::getText).toList();
-        }
-
-        if (whereClause != null) return new Queries.SelectDataQuery(columns, isStar, tableName, whereClause.name().getText(), whereClause.value().getText());
-        else return new Queries.SelectDataQuery(columns, isStar, tableName, null, null);
     }
 
 }
