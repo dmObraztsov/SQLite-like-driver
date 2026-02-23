@@ -27,8 +27,7 @@ public class ColumnMetadata {
         this.constraints = constraints;
         this.collate = collate;
     }
-
-    @JsonIgnore
+    
     public void incrementSize() {
         this.size++;
     }

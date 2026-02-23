@@ -7,17 +7,11 @@ import lombok.Setter;
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@Setter
 public class ExecutionResult {
-    @Getter
-    @Setter
     private boolean success;
-
-    @Getter
-    @Setter
     private String message;
-
-    @Getter
-    @Setter
     List<Row> rows;
 
     public ExecutionResult(boolean success, String message) {

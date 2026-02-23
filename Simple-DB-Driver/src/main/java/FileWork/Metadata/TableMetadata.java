@@ -1,6 +1,5 @@
 package FileWork.Metadata;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -26,30 +25,22 @@ public class TableMetadata {
         this.countDefaults = countDefaults;
     }
 
-    @JsonIgnore
     public void addColumnName(String name)
     {
         columnNames.add(name);
     }
-
-    @JsonIgnore
     public void deleteColumnName(String name)
     {
         columnNames.remove(name);
     }
-
-    @JsonIgnore
     public void addAutoIncrement()
     {
         this.countAutoIncrements++;
     }
-
-    @JsonIgnore
     public void addDefault()
     {
         this.countDefaults++;
     }
-
     public void setTableName(String tableName) {
 
     }
