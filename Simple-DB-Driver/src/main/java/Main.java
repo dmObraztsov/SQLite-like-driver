@@ -1,40 +1,68 @@
 import Exceptions.FileStorageException;
 import FileWork.FileManager;
 import FileWork.JSON.JsonFileStorage;
-import SqlParser.QueriesStruct.Queries;
+import SqlParser.QueriesStruct.ExecutionResult;
 import SqlParser.QueriesStruct.QueryInterface;
 import SqlParser.Antlr.SQLProcessor;
+import Yadro.DataStruct.DatabaseEngine;
+import Yadro.DataStruct.Row;
 
 import java.util.Scanner;
+import java.util.List;
 
 public class Main {
-    public static void main(String[] args) throws FileStorageException {
-        Scanner in = new Scanner(System.in); //TODO Handle input errors
-        FileManager fileManager = new FileManager(new JsonFileStorage(), "testDB");
-        String inputLine;
+    public static void main(String[] args) {
+        Scanner in = new Scanner(System.in);
 
-        while((inputLine = in.nextLine()) != null)
-        {
-            QueryInterface currentQuery = SQLProcessor.getQuery(inputLine);
-            if(currentQuery == null)
-            {
-                System.out.println("Syntax error");
-                continue;
+        JsonFileStorage storage = new JsonFileStorage();
+        FileManager fileManager = new FileManager(storage);
+
+        DatabaseEngine engine = new DatabaseEngine(fileManager);
+
+        System.out.println("SQL Database Engine started. Enter your queries:");
+
+        while (true) {
+            System.out.print("> ");
+            String inputLine = in.nextLine();
+
+            if (inputLine == null || inputLine.equalsIgnoreCase("exit")) {
+                break;
             }
 
-            if(fileManager.getNameDB().isEmpty() && !(currentQuery instanceof Queries.CreateDataBaseQuery) &&
-                    !(currentQuery instanceof Queries.UseDataBaseQuery) &&
-                    !(currentQuery instanceof Queries.DropDataBaseQuery))
-            {
-                System.out.println("DataBase is not exits or not connected");
-                continue;
-            }
+            try {
+                QueryInterface currentQuery = SQLProcessor.getQuery(inputLine);
 
-            if(!currentQuery.execute(fileManager)) //TODO Нужно ограничить возможность изменять и
-                // удалять внутренние системные файлы
-            {
-                System.out.println("Error in query: " + currentQuery.getClass());
+                if (currentQuery == null) {
+                    System.err.println("Syntax error: failed to parse query.");
+                    continue;
+                }
+                ExecutionResult result = currentQuery.execute(engine);
+                displayResult(result);
+
+            } catch (Exception e) {
+                System.err.println("Execution error: " + e.getMessage());
             }
         }
+    }
+
+    private static void displayResult(ExecutionResult result) {
+        if (!result.isSuccess()) {
+            System.err.println("Error: " + result.getMessage());
+            return;
+        }
+
+        System.out.println(result.getMessage());
+
+        List<Row> rows = result.getRows();
+        if (rows != null && !rows.isEmpty()) {
+            printTable(rows);
+        }
+    }
+
+    private static void printTable(List<Row> rows) {
+        for (Row row : rows) {
+            System.out.println(row.toString());
+        }
+        System.out.println("Total rows: " + rows.size());
     }
 }

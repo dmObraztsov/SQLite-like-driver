@@ -1,8 +1,8 @@
 package SqlParser.QueriesStruct;
 
 import Exceptions.FileStorageException;
-import FileWork.FileManager;
+import Yadro.DataStruct.DatabaseEngine;
 
 public interface QueryInterface {
-    boolean execute(FileManager fileManager) throws FileStorageException;
+    ExecutionResult execute(DatabaseEngine engine) throws Exception;
 }
