@@ -30,7 +30,7 @@ public class Queries {
     public record UseDataBaseQuery(String databaseName) implements QueryInterface {
 
         @Override
-        public ExecutionResult execute(DatabaseEngine engine) {
+        public ExecutionResult execute(DatabaseEngine engine) throws FileStorageException {
             engine.setCurrentDatabase(databaseName);
             return new ExecutionResult(true, "Switched to database '" + databaseName + "'.");
         }
@@ -78,6 +78,30 @@ public class Queries {
         public ExecutionResult execute(DatabaseEngine engine) throws Exception {
             List<Row> result = engine.join(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol);
             return new ExecutionResult(true, "Join completed", result);
+        }
+    }
+
+    public record BeginTransactionQuery() implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) {
+            engine.beginTransaction();
+            return new ExecutionResult(true, "Transaction started.");
+        }
+    }
+
+    public record CommitQuery() implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception {
+            engine.commit();
+            return new ExecutionResult(true, "Transaction committed.");
+        }
+    }
+
+    public record RollbackQuery() implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) {
+            engine.rollback();
+            return new ExecutionResult(true, "Transaction rolled back.");
         }
     }
 
