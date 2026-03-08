@@ -19,7 +19,7 @@ public class DatabaseEngine {
         this.transactionBuffer = new HashMap<>();
     }
 
-    public void setCurrentDatabase(String dbName) {
+    public void setCurrentDatabase(String dbName) throws FileStorageException {
         fileManager.useDB(dbName);
     }
 
@@ -242,5 +242,13 @@ public class DatabaseEngine {
         } catch (NumberFormatException e) {
             throw new Exception("Type mismatch: expected " + type + ", got '" + value + "'");
         }
+    }
+
+    public void alterTableAddColumn(String tableName, ColumnMetadata column) throws FileStorageException {
+        fileManager.alterTableAddColumn(tableName, column);
+    }
+
+    public void alterTableDropColumn(String tableName, String columnName) throws FileStorageException {
+        fileManager.alterTableDropColumn(tableName, columnName);
     }
 }

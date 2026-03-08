@@ -1,5 +1,6 @@
 package FileWork;
 
+import Exceptions.EmptyFileException;
 import Exceptions.FileStorageException;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.DatabaseMetadata;
@@ -38,14 +39,17 @@ public class FileManager {
         fileStorage.deleteDirectory(PathManager.getDatabasePath(name));
     }
 
-    public void useDB(String name) {
+    public void useDB(String name) throws FileStorageException {
         if (name == null || name.trim().isEmpty()) {
             this.nameDB = NO_USE_DB;
             return;
         }
-        if (fileStorage.exists(PathManager.getDatabasePath(name))) {
-            this.nameDB = name;
+
+        if (!fileStorage.exists(PathManager.getDatabasePath(name))) {
+            throw new EmptyFileException("Database not found: " + name);
         }
+
+        this.nameDB = name;
     }
 
     public void saveTableMetadata(String tableName, TableMetadata metadata) throws FileStorageException {
@@ -96,5 +100,37 @@ public class FileManager {
 
     public void renameDirectory(String oldPath, String newPath) throws FileStorageException {
         fileStorage.renameDirectory(oldPath, newPath);
+    }
+
+    public void alterTableAddColumn(String tableName, ColumnMetadata newColumnMeta) throws FileStorageException {
+        if (!tableExists(tableName)) {
+            throw new IllegalArgumentException("Table does not exist: " + tableName);
+        }
+
+        TableMetadata tableMeta = loadTableMetadata(tableName);
+        tableMeta.addColumnName(newColumnMeta.getName());
+        tableMeta.setColumnCount(tableMeta.getColumnCount() + 1);
+        saveTableMetadata(tableName, tableMeta);
+        Column newColumnData = new Column();
+        saveColumnData(tableName, newColumnMeta.getName(), newColumnData);
+        saveColumnMetadata(tableName, newColumnMeta.getName(), newColumnMeta);
+    }
+
+    public void alterTableDropColumn(String tableName, String columnName) throws FileStorageException {
+        if (!tableExists(tableName)) {
+            throw new IllegalArgumentException("Table does not exist: " + tableName);
+        }
+
+        TableMetadata tableMeta = loadTableMetadata(tableName);
+
+        if (!tableMeta.getColumnNames().contains(columnName)) {
+            throw new IllegalArgumentException("Column does not exist: " + columnName);
+        }
+
+        tableMeta.getColumnNames().remove(columnName);
+        tableMeta.setColumnCount(tableMeta.getColumnCount() - 1);
+        saveTableMetadata(tableName, tableMeta);
+
+        deleteColumnFiles(tableName, columnName);
     }
 }
