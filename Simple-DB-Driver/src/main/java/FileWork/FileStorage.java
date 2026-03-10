@@ -1,6 +1,7 @@
 package FileWork;
 
 import Exceptions.*;
+import FileWork.Metadata.ColumnMetadata;
 
 public interface FileStorage {
     boolean exists(String path);

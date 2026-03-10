@@ -99,6 +99,23 @@ public class AntlrParser extends SqlParser.Antlr.SQLBaseVisitor<QueryInterface> 
         return new Queries.JoinTableQuery(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol);
     }
 
+    @Override
+    public QueryInterface visitAlterTableStatement(SQLParser.AlterTableStatementContext ctx) {
+        String tableName = ctx.name().getText();
+        SQLParser.AlterActionContext actionCtx = ctx.alterAction();
+
+        if (actionCtx.addColumn() != null) {
+            ColumnMetadata column = parseColumn(actionCtx.addColumn().column());
+            return new Queries.AlterTableAddColumnQuery(tableName, column);
+
+        } else if (actionCtx.dropColumn() != null) {
+            String columnName = actionCtx.dropColumn().name().getText();
+            return new Queries.AlterTableDropColumnQuery(tableName, columnName);
+        }
+
+        throw new IllegalArgumentException("Unsupported ALTER TABLE statement");
+    }
+
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {
         Constraints constraint;
         String text = currConstraint.getText();
@@ -133,23 +150,6 @@ public class AntlrParser extends SqlParser.Antlr.SQLBaseVisitor<QueryInterface> 
 
         Collate collate = null; // TODO
         return new ColumnMetadata(columnContext.name().getText(), dataType, 0, constraints, collate);
-    }
-
-    @Override
-    public QueryInterface visitAlterTableStatement(SQLParser.AlterTableStatementContext ctx) {
-        String tableName = ctx.name().getText(); // имя таблицы
-        SQLParser.AlterActionContext actionCtx = ctx.alterAction();
-
-        if (actionCtx.addColumn() != null) { // ADD COLUMN
-            ColumnMetadata column = parseColumn(actionCtx.addColumn().column());
-            return new Queries.AlterTableAddColumnQuery(tableName, column);
-
-        } else if (actionCtx.dropColumn() != null) { // DROP COLUMN
-            String columnName = actionCtx.dropColumn().name().getText();
-            return new Queries.AlterTableDropColumnQuery(tableName, columnName);
-        }
-
-        throw new IllegalArgumentException("Unsupported ALTER TABLE statement");
     }
 
 }

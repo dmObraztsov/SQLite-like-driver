@@ -2,6 +2,7 @@ package FileWork.JSON;
 
 import Exceptions.*;
 import FileWork.FileStorage;
+import FileWork.Metadata.ColumnMetadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;

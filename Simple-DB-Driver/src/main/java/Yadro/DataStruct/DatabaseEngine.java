@@ -245,10 +245,38 @@ public class DatabaseEngine {
     }
 
     public void alterTableAddColumn(String tableName, ColumnMetadata column) throws FileStorageException {
-        fileManager.alterTableAddColumn(tableName, column);
+        if (!fileManager.tableExists(tableName)) {
+            throw new IllegalArgumentException("Table does not exist: " + tableName);
+        }
+
+        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+
+        tableMeta.addColumnName(column.getName());
+        tableMeta.setColumnCount(tableMeta.getColumnCount() + 1);
+
+        fileManager.saveTableMetadata(tableName, tableMeta);
+
+        Column newColumnData = new Column();
+
+        fileManager.saveColumnData(tableName, column.getName(), newColumnData);
+        fileManager.saveColumnMetadata(tableName, column.getName(), column);
     }
 
     public void alterTableDropColumn(String tableName, String columnName) throws FileStorageException {
-        fileManager.alterTableDropColumn(tableName, columnName);
+        if (!fileManager.tableExists(tableName)) {
+            throw new IllegalArgumentException("Table does not exist: " + tableName);
+        }
+
+        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+
+        if (!tableMeta.getColumnNames().contains(columnName)) {
+            throw new IllegalArgumentException("Column does not exist: " + columnName);
+        }
+
+        tableMeta.getColumnNames().remove(columnName);
+        tableMeta.setColumnCount(tableMeta.getColumnCount() - 1);
+
+        fileManager.saveTableMetadata(tableName, tableMeta);
+        fileManager.deleteColumnFiles(tableName, columnName);
     }
 }

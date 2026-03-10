@@ -101,36 +101,4 @@ public class FileManager {
     public void renameDirectory(String oldPath, String newPath) throws FileStorageException {
         fileStorage.renameDirectory(oldPath, newPath);
     }
-
-    public void alterTableAddColumn(String tableName, ColumnMetadata newColumnMeta) throws FileStorageException {
-        if (!tableExists(tableName)) {
-            throw new IllegalArgumentException("Table does not exist: " + tableName);
-        }
-
-        TableMetadata tableMeta = loadTableMetadata(tableName);
-        tableMeta.addColumnName(newColumnMeta.getName());
-        tableMeta.setColumnCount(tableMeta.getColumnCount() + 1);
-        saveTableMetadata(tableName, tableMeta);
-        Column newColumnData = new Column();
-        saveColumnData(tableName, newColumnMeta.getName(), newColumnData);
-        saveColumnMetadata(tableName, newColumnMeta.getName(), newColumnMeta);
-    }
-
-    public void alterTableDropColumn(String tableName, String columnName) throws FileStorageException {
-        if (!tableExists(tableName)) {
-            throw new IllegalArgumentException("Table does not exist: " + tableName);
-        }
-
-        TableMetadata tableMeta = loadTableMetadata(tableName);
-
-        if (!tableMeta.getColumnNames().contains(columnName)) {
-            throw new IllegalArgumentException("Column does not exist: " + columnName);
-        }
-
-        tableMeta.getColumnNames().remove(columnName);
-        tableMeta.setColumnCount(tableMeta.getColumnCount() - 1);
-        saveTableMetadata(tableName, tableMeta);
-
-        deleteColumnFiles(tableName, columnName);
-    }
 }

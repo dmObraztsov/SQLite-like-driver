@@ -10,7 +10,6 @@ repositories {
     mavenCentral()
 }
 
-
 dependencies {
     antlr 'org.antlr:antlr4:4.13.0'
     implementation 'org.antlr:antlr4-runtime:4.13.0'
@@ -18,8 +17,8 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.0'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.16.0'
 
-    compileOnly 'org.projectlombok:lombok:1.18.38'
-    annotationProcessor 'org.projectlombok:lombok:1.18.38'
+    compileOnly 'org.projectlombok:lombok:1.18.36'
+    annotationProcessor 'org.projectlombok:lombok:1.18.36'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.2'
     testImplementation 'org.assertj:assertj-core:3.27.7'
@@ -29,8 +28,16 @@ dependencies {
 
 generateGrammarSource {
     arguments += ['-visitor', '-no-listener', '-package', 'SqlParser.Antlr']
-    outputDirectory = file("build/generated-src/antlr/main/SqlParser.Antlr")
+    outputDirectory = file("build/generated-src/antlr/main/SqlParser/Antlr")
 }
+
+
+tasks.register('buildDependencies') {
+    description = 'Generates ANTLR grammar sources and compiles the project'
+    dependsOn generateGrammarSource, compileJava
+}
+
+compileJava.dependsOn generateGrammarSource
 
 test {
     useJUnitPlatform()
