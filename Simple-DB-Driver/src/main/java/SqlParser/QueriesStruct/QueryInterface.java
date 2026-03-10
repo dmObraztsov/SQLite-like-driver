@@ -4,5 +4,5 @@ import Exceptions.FileStorageException;
 import Yadro.DataStruct.DatabaseEngine;
 
 public interface QueryInterface {
-    ExecutionResult execute(DatabaseEngine engine) throws Exception;
+    ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException;
 }

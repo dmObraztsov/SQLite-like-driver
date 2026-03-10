@@ -2,6 +2,7 @@ package FileWork.JSON;
 
 import Exceptions.*;
 import FileWork.FileStorage;
+import FileWork.Metadata.ColumnMetadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
@@ -19,25 +20,24 @@ public class JsonFileStorage implements FileStorage {
     @Override
     public <T> T readFile(String path, Class<T> type) throws FileStorageException {
         try {
-
             File file = new File(path);
 
             if (!file.exists()) {
-                throw new NoFileException("File not found:" + path);
+                throw new NoFileException("File not found: " + path);
             }
 
             if (file.length() == 0) {
-                throw new EmptyFileException("Empty File:" + path);
+                throw new EmptyFileException("Empty File: " + path);
             }
 
             if (!file.canRead()) {
-                throw new PermissionDeniedException("Permission denied:" + path);
+                throw new PermissionDeniedException("Permission denied: " + path);
             }
 
             return mapper.readValue(file, type);
 
         } catch (IOException e) {
-            throw new SerializationStorageException("Could not read file: " + path, e);
+            throw new FileStorageException("Failed to read file: " + path, e);
         }
     }
 
