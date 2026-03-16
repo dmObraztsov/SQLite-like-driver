@@ -1,59 +1,111 @@
 grammar SQL;
 
-query : createDBStatement
-      | dropDBStatement
-      | useDBStatement
-      | createTableStatement
-      | dropTableStatement
-      | alterTableStatement
-      | insertTableStatement
-      | selectDataStatement
-      | joinTableStatement;
+query
+    : createDBStatement
+    | dropDBStatement
+    | useDBStatement
+    | createTableStatement
+    | dropTableStatement
+    | alterTableStatement
+    | insertTableStatement
+    | selectStatement
+    | beginTransactionStatement
+    | commitStatement
+    | rollbackStatement
+    ;
 
-createDBStatement : CREATE DATABASE ifNotExists? name;
-dropDBStatement : DROP DATABASE name;
-useDBStatement : USE DATABASE name;
-createTableStatement : CREATE TABLE ifNotExists? name ('(' column (',' column)* ')')?;
-dropTableStatement : DROP TABLE name;
-alterTableStatement : ALTER TABLE name alterAction;
-insertTableStatement : INSERT INTO tablename ('(' name (',' name)* ')')? VALUES ('(' data (',' data)* ')');
-selectDataStatement : SELECT selectCols FROM tablename whereClause?;
-joinTableStatement : SELECT joinCols FROM tablename JOIN tablename onClause;
+createDBStatement : CREATE DATABASE ifNotExists? identifier;
+dropDBStatement : DROP DATABASE identifier;
+useDBStatement : USE DATABASE identifier;
 
-selectCols : STAR | name(',' name)*;
-joinCols : longName(',' longName)*;
-whereClause : WHERE name EQ value;
-onClause : ON longName EQ longName;
-value : ID;
+createTableStatement : CREATE TABLE ifNotExists? identifier LPAREN columnDef (COMMA columnDef)* RPAREN;
 
-alterAction : addColumn
-            | dropColumn
-            | renameColumn
-            | renameTable;
+dropTableStatement : DROP TABLE identifier;
 
-addColumn : ADD COLUMN column;
-dropColumn : DROP COLUMN name;
-renameColumn : RENAME COLUMN name TO name;
-renameTable : RENAME TO name;
+alterTableStatement : ALTER TABLE identifier alterAction;
 
+alterAction:
+      ADD COLUMN columnDef
+    | DROP COLUMN identifier
+    | RENAME COLUMN identifier TO identifier
+    | RENAME TO identifier;
+
+insertTableStatement :
+    INSERT INTO identifier (LPAREN identifier (COMMA identifier)* RPAREN)?
+    VALUES LPAREN literal (COMMA literal)* RPAREN;
+
+selectStatement : SELECT selectCols FROM tablename joinClause* whereClause?;
+
+selectCols:
+    STAR
+    | columnRef (COMMA columnRef)*;
+
+joinClause : JOIN tablename ON condition;
+whereClause : WHERE condition;
+
+condition : orCondition;
+orCondition : andCondition (OR andCondition)*;
+andCondition : predicate (AND predicate)*;
+predicate:
+    LPAREN condition RPAREN
+    | operand comparisonOperator operand;
+
+operand :
+    columnRef
+    | literal;
+
+comparisonOperator:
+      EQ
+    | NE
+    | GT
+    | LT
+    | GE
+    | LE;
+
+tablename : identifier;
+columnDef : identifier dataType columnConstraint*;
+columnRef : identifier (DOT identifier)?;
+
+columnConstraint:
+      notNullConstraint
+    | primaryKeyConstraint
+    | autoIncrementConstraint
+    | uniqueConstraint
+    | nullConstraint
+    | checkConstraint
+    | defaultConstraint;
+
+notNullConstraint : NOT NULL;
+primaryKeyConstraint : PRIMARY KEY;
+autoIncrementConstraint : AUTOINCREMENT;
+uniqueConstraint : UNIQUE;
+nullConstraint : NULL;
+checkConstraint : CHECK LPAREN condition RPAREN;
+defaultConstraint : DEFAULT literal;
 ifNotExists : IF NOT EXISTS;
-notNull : NOT NULL;
-primaryKey : PRIMARY KEY;
-column : name TYPE constraint*;
-constraint : notNull | primaryKey | AUTOINCREMENT | UNIQUE | NULL | CHECK | DEFAULT;
-name: NAME;
-longName: NAME DOT NAME;
-tablename: NAME;
-data: ID;
+
+beginTransactionStatement : BEGIN TRANSACTION?;
+commitStatement : COMMIT;
+rollbackStatement : ROLLBACK;
+
+identifier : NAME;
+literal:
+      NUMBER
+    | STRING
+    | NULL;
+
+dataType:
+      INTEGER
+    | REAL
+    | TEXT
+    | BLOB;
 
 SELECT : 'SELECT';
 FROM : 'FROM';
 WHERE : 'WHERE';
 JOIN : 'JOIN';
 ON : 'ON';
-EQ : '=';
-STAR : '*';
-DOT : '.';
+
 CREATE : 'CREATE';
 DROP : 'DROP';
 USE : 'USE';
@@ -68,6 +120,10 @@ VALUES : 'VALUES';
 
 DATABASE : 'DATABASE';
 TABLE : 'TABLE';
+TRANSACTION : 'TRANSACTION';
+BEGIN : 'BEGIN';
+COMMIT : 'COMMIT';
+ROLLBACK : 'ROLLBACK';
 
 IF : 'IF';
 NOT : 'NOT';
@@ -79,11 +135,28 @@ AUTOINCREMENT : 'AUTOINCREMENT';
 UNIQUE : 'UNIQUE';
 CHECK : 'CHECK';
 DEFAULT : 'DEFAULT';
+AND : 'AND';
+OR : 'OR';
 
-TYPE : 'INTEGER' | 'REAL' | 'TEXT' | 'BLOB';
+INTEGER : 'INTEGER';
+REAL : 'REAL';
+TEXT : 'TEXT';
+BLOB : 'BLOB';
+
+EQ : '=';
+NE : '!=' | '<>';
+GE : '>=';
+LE : '<=';
+GT : '>';
+LT : '<';
+
+STAR : '*';
+DOT : '.';
+COMMA : ',';
+LPAREN : '(';
+RPAREN : ')';
 
 NAME : [a-zA-Z_][a-zA-Z_0-9]*;
-ID : NUMBER | STRING;
 STRING : '"' (~["\\] | '\\' .)* '"';
 NUMBER : [0-9]+ ('.' [0-9]+)?;
 WS : [ \t\r\n]+ -> skip;

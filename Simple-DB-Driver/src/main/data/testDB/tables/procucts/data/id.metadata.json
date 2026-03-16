@@ -1,0 +1,6 @@
+{
+  "name" : "id",
+  "type" : "INTEGER",
+  "size" : 0,
+  "constraints" : [ "AUTOINCREMENT" ]
+}

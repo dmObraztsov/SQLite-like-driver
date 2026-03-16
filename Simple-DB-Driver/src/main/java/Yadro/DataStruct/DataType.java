@@ -7,7 +7,8 @@ public enum DataType {
     NULL("NULL", Void.class, -1),
     INTEGER("INTEGER", Long.class, 8),
     REAL("REAL", Double.class, 8),
-    TEXT("TEXT", String.class, 255); // default size
+    TEXT("TEXT", String.class, 255), // default size
+    BLOB("BLOB", byte[].class, -1);
 
     private final String sqlType;
     private final Class<?> javaType;

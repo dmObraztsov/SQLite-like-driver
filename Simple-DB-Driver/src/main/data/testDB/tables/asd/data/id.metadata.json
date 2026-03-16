@@ -1,0 +1,7 @@
+{
+  "name" : "id",
+  "type" : "INTEGER",
+  "size" : 0,
+  "constraints" : [ "CHECK" ],
+  "checkExpression" : "id>5"
+}
