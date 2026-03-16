@@ -90,6 +90,11 @@ public class FileManager {
         fileStorage.deleteFile(PathManager.getColumnMetadataPath(nameDB, tableName, columnName));
     }
 
+    public void renameColumnFiles(String tableName, String oldName, String newName) throws FileStorageException {
+        fileStorage.renameFile(PathManager.getColumnPath(nameDB, tableName, oldName), PathManager.getColumnPath(nameDB, tableName, newName));
+        fileStorage.renameFile(PathManager.getColumnMetadataPath(nameDB, tableName, oldName), PathManager.getColumnMetadataPath(nameDB, tableName, newName));
+    }
+
     public boolean tableExists(String tableName) {
         return fileStorage.exists(PathManager.getTablePath(nameDB, tableName));
     }
@@ -98,7 +103,7 @@ public class FileManager {
         fileStorage.renameFile(oldPath, newPath);
     }
 
-    public void renameDirectory(String oldPath, String newPath) throws FileStorageException {
-        fileStorage.renameDirectory(oldPath, newPath);
+    public void renameDirectory(String oldName, String newName) throws FileStorageException {
+        fileStorage.renameDirectory(PathManager.getTablePath(this.getNameDB(), oldName), PathManager.getTablePath(this.getNameDB(), newName));
     }
 }

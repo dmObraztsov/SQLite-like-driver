@@ -111,6 +111,14 @@ public class AntlrParser extends SqlParser.Antlr.SQLBaseVisitor<QueryInterface> 
         } else if (actionCtx.dropColumn() != null) {
             String columnName = actionCtx.dropColumn().name().getText();
             return new Queries.AlterTableDropColumnQuery(tableName, columnName);
+        } else if (actionCtx.renameColumn() != null) {
+            String oldName = actionCtx.renameColumn().name(0).getText();
+            String newName = actionCtx.renameColumn().name(1).getText();
+            return new Queries.AlterTableRenameColumnQuery(tableName, oldName, newName);
+
+        } else if (actionCtx.renameTable() != null) {
+            String newName = actionCtx.renameTable().name().getText();
+            return new Queries.AlterTableRenameTableQuery(tableName, newName);
         }
 
         throw new IllegalArgumentException("Unsupported ALTER TABLE statement");

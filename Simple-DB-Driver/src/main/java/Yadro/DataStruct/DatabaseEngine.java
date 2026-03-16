@@ -1,6 +1,9 @@
 package Yadro.DataStruct;
 
+import Exceptions.AlreadyExistsException;
 import Exceptions.FileStorageException;
+import Exceptions.NoFileException;
+import Exceptions.NoTableException;
 import FileWork.FileManager;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
@@ -51,7 +54,7 @@ public class DatabaseEngine {
     }
 
     public void insert(String tableName, List<String> columnNames, List<String> values) throws Exception {
-        if (!fileManager.tableExists(tableName)) throw new Exception("Table not found");
+        if (!fileManager.tableExists(tableName)) throw new NoTableException("Table not found");
 
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
 
@@ -246,7 +249,7 @@ public class DatabaseEngine {
 
     public void alterTableAddColumn(String tableName, ColumnMetadata column) throws FileStorageException {
         if (!fileManager.tableExists(tableName)) {
-            throw new IllegalArgumentException("Table does not exist: " + tableName);
+            throw new NoTableException("Table does not exist: " + tableName);
         }
 
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
@@ -264,13 +267,13 @@ public class DatabaseEngine {
 
     public void alterTableDropColumn(String tableName, String columnName) throws FileStorageException {
         if (!fileManager.tableExists(tableName)) {
-            throw new IllegalArgumentException("Table does not exist: " + tableName);
+            throw new NoTableException("Table does not exist: " + tableName);
         }
 
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
 
         if (!tableMeta.getColumnNames().contains(columnName)) {
-            throw new IllegalArgumentException("Column does not exist: " + columnName);
+            throw new NoFileException("Column does not exist: " + columnName);
         }
 
         tableMeta.getColumnNames().remove(columnName);
@@ -278,5 +281,48 @@ public class DatabaseEngine {
 
         fileManager.saveTableMetadata(tableName, tableMeta);
         fileManager.deleteColumnFiles(tableName, columnName);
+    }
+
+    public void alterTableRenameColumn(String tableName, String columnName, String newName) throws FileStorageException {
+        if (!fileManager.tableExists(tableName)) {
+            throw new NoTableException("Table does not exist: " + tableName);
+        }
+
+        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+
+        if (!tableMeta.getColumnNames().contains(columnName)) {
+            throw new NoFileException("Column does not exist: " + columnName);
+        }
+
+        if (tableMeta.getColumnNames().contains(newName)) {
+            throw new AlreadyExistsException("Column already exists: " + newName);
+        }
+
+        int index = tableMeta.getColumnNames().indexOf(columnName);
+        tableMeta.getColumnNames().set(index, newName);
+
+        fileManager.saveTableMetadata(tableName, tableMeta);
+
+        ColumnMetadata columnMeta = fileManager.loadColumnMetadata(tableName, columnName);
+        columnMeta.setName(newName);
+
+        fileManager.renameColumnFiles(tableName, columnName, newName);
+        fileManager.saveColumnMetadata(tableName, newName, columnMeta);
+    }
+
+    public void alterTableRenameTable(String tableName, String newName) throws FileStorageException {
+        if (!fileManager.tableExists(tableName)) {
+            throw new NoTableException("Table does not exist: " + tableName);
+        }
+
+        if (fileManager.tableExists(newName)) {
+            throw new AlreadyExistsException("Table already exists: " + newName);
+        }
+
+        fileManager.renameDirectory(tableName, newName);
+
+        TableMetadata tableMeta = fileManager.loadTableMetadata(newName);
+        tableMeta.setTableName(newName);
+        fileManager.saveTableMetadata(newName, tableMeta);
     }
 }
