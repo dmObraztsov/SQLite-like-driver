@@ -1,10 +1,7 @@
 package FileWork;
 
-import Exceptions.FileManagerException;
-import Exceptions.FileStorageException;
-import FileWork.Metadata.DatabaseMetadata;
-import FileWork.Metadata.TableMetadata;
-import Yadro.DataStruct.Column;
+import Exceptions.*;
+import FileWork.Metadata.ColumnMetadata;
 
 public interface FileStorage {
     boolean exists(String path);

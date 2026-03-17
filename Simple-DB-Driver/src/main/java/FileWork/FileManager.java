@@ -1,5 +1,6 @@
 package FileWork;
 
+import Exceptions.EmptyFileException;
 import Exceptions.FileStorageException;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.DatabaseMetadata;
@@ -38,14 +39,17 @@ public class FileManager {
         fileStorage.deleteDirectory(PathManager.getDatabasePath(name));
     }
 
-    public void useDB(String name) {
+    public void useDB(String name) throws FileStorageException {
         if (name == null || name.trim().isEmpty()) {
             this.nameDB = NO_USE_DB;
             return;
         }
-        if (fileStorage.exists(PathManager.getDatabasePath(name))) {
-            this.nameDB = name;
+
+        if (!fileStorage.exists(PathManager.getDatabasePath(name))) {
+            throw new EmptyFileException("Database not found: " + name);
         }
+
+        this.nameDB = name;
     }
 
     public void saveTableMetadata(String tableName, TableMetadata metadata) throws FileStorageException {

@@ -11,24 +11,24 @@ import org.antlr.v4.runtime.RuleContext;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
+public class AntlrParser extends SqlParser.Antlr.SQLBaseVisitor<QueryInterface> {
     @Override
-    public QueryInterface visitQuery(SQLParser.QueryContext ctx) {
+    public QueryInterface visitQuery(SqlParser.Antlr.SQLParser.QueryContext ctx) {
         return visitChildren(ctx);
     }
 
     @Override
-    public QueryInterface visitCreateDBStatement(SQLParser.CreateDBStatementContext ctx) {
+    public QueryInterface visitCreateDBStatement(SqlParser.Antlr.SQLParser.CreateDBStatementContext ctx) {
         return new Queries.CreateDataBaseQuery(ctx.name().getText());
     }
 
     @Override
-    public QueryInterface visitDropDBStatement(SQLParser.DropDBStatementContext ctx) {
+    public QueryInterface visitDropDBStatement(SqlParser.Antlr.SQLParser.DropDBStatementContext ctx) {
         return new Queries.DropDataBaseQuery(ctx.name().getText());
     }
 
     @Override
-    public QueryInterface visitUseDBStatement(SQLParser.UseDBStatementContext ctx) {
+    public QueryInterface visitUseDBStatement(SqlParser.Antlr.SQLParser.UseDBStatementContext ctx) {
         return new Queries.UseDataBaseQuery(ctx.name().getText());
     }
 
@@ -97,6 +97,23 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         String rightJoinCol = ctx.onClause().longName(1).NAME(1).getText();
 
         return new Queries.JoinTableQuery(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol);
+    }
+
+    @Override
+    public QueryInterface visitAlterTableStatement(SQLParser.AlterTableStatementContext ctx) {
+        String tableName = ctx.name().getText();
+        SQLParser.AlterActionContext actionCtx = ctx.alterAction();
+
+        if (actionCtx.addColumn() != null) {
+            ColumnMetadata column = parseColumn(actionCtx.addColumn().column());
+            return new Queries.AlterTableAddColumnQuery(tableName, column);
+
+        } else if (actionCtx.dropColumn() != null) {
+            String columnName = actionCtx.dropColumn().name().getText();
+            return new Queries.AlterTableDropColumnQuery(tableName, columnName);
+        }
+
+        throw new IllegalArgumentException("Unsupported ALTER TABLE statement");
     }
 
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {

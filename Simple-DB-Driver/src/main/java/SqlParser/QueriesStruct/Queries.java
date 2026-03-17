@@ -1,5 +1,6 @@
 package SqlParser.QueriesStruct;
 
+import Exceptions.FileStorageException;
 import FileWork.Metadata.ColumnMetadata;
 import Yadro.DataStruct.DatabaseEngine;
 import Yadro.DataStruct.Row;
@@ -11,7 +12,7 @@ public class Queries {
     public record CreateDataBaseQuery(String databaseName) implements QueryInterface {
 
         @Override
-        public ExecutionResult execute(DatabaseEngine engine) throws Exception {
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
             engine.createDatabase(databaseName);
             return new ExecutionResult(true, "Database '" + databaseName + "' created.");
         }
@@ -29,7 +30,7 @@ public class Queries {
     public record UseDataBaseQuery(String databaseName) implements QueryInterface {
 
         @Override
-        public ExecutionResult execute(DatabaseEngine engine) {
+        public ExecutionResult execute(DatabaseEngine engine) throws FileStorageException {
             engine.setCurrentDatabase(databaseName);
             return new ExecutionResult(true, "Switched to database '" + databaseName + "'.");
         }
@@ -103,4 +104,21 @@ public class Queries {
             return new ExecutionResult(true, "Transaction rolled back.");
         }
     }
+
+    public record AlterTableAddColumnQuery(String tableName, ColumnMetadata column) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
+            engine.alterTableAddColumn(tableName, column);
+            return new ExecutionResult(true, "Column '" + column.getName() + "' added to table '" + tableName + "'.");
+        }
+    }
+
+    public record AlterTableDropColumnQuery(String tableName, String columnName) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
+            engine.alterTableDropColumn(tableName, columnName);
+            return new ExecutionResult(true, "Column '" + columnName + "' dropped from table '" + tableName + "'.");
+        }
+    }
+
 }
