@@ -8,7 +8,8 @@ query : createDBStatement
       | alterTableStatement
       | insertTableStatement
       | selectDataStatement
-      | joinTableStatement;
+      | joinTableStatement
+      | deleteStatement;
 
 createDBStatement : CREATE DATABASE ifNotExists? name;
 dropDBStatement : DROP DATABASE name;
@@ -19,6 +20,7 @@ alterTableStatement : ALTER TABLE name alterAction;
 insertTableStatement : INSERT INTO tablename ('(' name (',' name)* ')')? VALUES ('(' data (',' data)* ')');
 selectDataStatement : SELECT selectCols FROM tablename whereClause?;
 joinTableStatement : SELECT joinCols FROM tablename JOIN tablename onClause;
+deleteStatement : DELETE FROM tablename (whereClause)?;
 
 selectCols : STAR | name(',' name)*;
 joinCols : longName(',' longName)*;
@@ -50,6 +52,7 @@ SELECT : 'SELECT';
 FROM : 'FROM';
 WHERE : 'WHERE';
 JOIN : 'JOIN';
+DELETE : 'DELETE';
 ON : 'ON';
 EQ : '=';
 STAR : '*';

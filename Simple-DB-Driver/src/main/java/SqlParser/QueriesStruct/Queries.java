@@ -121,4 +121,29 @@ public class Queries {
         }
     }
 
+    public record AlterTableRenameColumnQuery(String tableName, String columnName, String newName) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
+            engine.alterTableRenameColumn(tableName, columnName, newName);
+            return new ExecutionResult(true, "Column '" + columnName + "' renamed to '" + newName + "'.");
+        }
+    }
+
+    public record AlterTableRenameTableQuery(String tableName, String newName) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
+            engine.alterTableRenameTable(tableName, newName);
+            return new ExecutionResult(true, "Table '" + tableName + "' renamed to '" + newName + "'.");
+        }
+    }
+
+    public record DeleteTableQuery(String tableName, String whereCol, String whereValue) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception {
+            int deletedRows = engine.delete(tableName, whereCol, whereValue);
+            String message = (deletedRows > 0) ? deletedRows + " row(s) deleted from '" + tableName + "'." : "No matching rows found in '" + tableName + "'.";
+            return new ExecutionResult(true, message);
+        }
+    }
+
 }
