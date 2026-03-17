@@ -137,4 +137,13 @@ public class Queries {
         }
     }
 
+    public record DeleteTableQuery(String tableName, String whereCol, String whereValue) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception {
+            int deletedRows = engine.delete(tableName, whereCol, whereValue);
+            String message = (deletedRows > 0) ? deletedRows + " row(s) deleted from '" + tableName + "'." : "No matching rows found in '" + tableName + "'.";
+            return new ExecutionResult(true, message);
+        }
+    }
+
 }

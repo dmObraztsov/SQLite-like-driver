@@ -97,20 +97,25 @@ public class DatabaseEngine {
             rawData.put(colName, col.getData());
         }
 
-        List<Row> rows = new ArrayList<>();
         int rowCount = rawData.values().iterator().next().size();
 
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
+
+        List<Row> rows = new ArrayList<>();
+
         for (int i = 0; i < rowCount; i++) {
+
+            if (matchingSet != null && !matchingSet.contains(i)) {
+                continue;
+            }
+
             Map<String, String> rowValues = new HashMap<>();
             for (String colName : targetColumns) {
                 rowValues.put(colName, rawData.get(colName).get(i));
             }
 
-            Row row = new Row(rowValues);
-
-            if (whereCol == null || row.get(whereCol).equals(whereVal)) {
-                rows.add(row);
-            }
+            rows.add(new Row(rowValues));
         }
 
         return rows;
@@ -206,45 +211,8 @@ public class DatabaseEngine {
         isTransaction = false;
     }
 
-    private void restoreSnapshot(Map<String, Map<String, Column>> snapshot) {
-        for (Map.Entry<String, Map<String, Column>> tableEntry : snapshot.entrySet()) {
-            String tableName = tableEntry.getKey();
-            for (Map.Entry<String, Column> colEntry : tableEntry.getValue().entrySet()) {
-                try {
-                    fileManager.saveColumnData(tableName, colEntry.getKey(), colEntry.getValue());
-                } catch (FileStorageException ignored) {
-                    //TODO здесь фатальная ошибка, если мы делаем без журналирования, надо подумать че делать
-                }
-            }
-        }
-    }
-
     public boolean isTransactionActive() {
         return isTransaction;
-    }
-
-    private Column loadColumn(String tableName, String colName) throws FileStorageException {
-        if (isTransaction && transactionBuffer.containsKey(tableName)) {
-            Map<String, Column> tableBuffer = transactionBuffer.get(tableName);
-            if (tableBuffer.containsKey(colName)) {
-                Column buffered = tableBuffer.get(colName);
-                Column copy = new Column();
-                copy.setData(new ArrayList<>(buffered.getData()));
-                return copy;
-            }
-        }
-        return fileManager.loadColumnData(tableName, colName);
-    }
-
-    private void validateType(String value, DataType type) throws Exception {
-        try {
-            switch (type) {
-                case INTEGER -> Long.parseLong(value);
-                case REAL -> Double.parseDouble(value);
-            }
-        } catch (NumberFormatException e) {
-            throw new Exception("Type mismatch: expected " + type + ", got '" + value + "'");
-        }
     }
 
     public void alterTableAddColumn(String tableName, ColumnMetadata column) throws FileStorageException {
@@ -256,10 +224,9 @@ public class DatabaseEngine {
 
         tableMeta.addColumnName(column.getName());
         tableMeta.setColumnCount(tableMeta.getColumnCount() + 1);
-
         fileManager.saveTableMetadata(tableName, tableMeta);
 
-        Column newColumnData = new Column();
+        Column newColumnData = createNewColumnWithNulls(tableName, column.getName());
 
         fileManager.saveColumnData(tableName, column.getName(), newColumnData);
         fileManager.saveColumnMetadata(tableName, column.getName(), column);
@@ -324,5 +291,140 @@ public class DatabaseEngine {
         TableMetadata tableMeta = fileManager.loadTableMetadata(newName);
         tableMeta.setTableName(newName);
         fileManager.saveTableMetadata(newName, tableMeta);
+    }
+
+    public int delete(String tableName, String whereCol, String whereVal) throws FileStorageException {
+        if (!fileManager.tableExists(tableName)) {
+            throw new NoTableException("Table not found: " + tableName);
+        }
+
+        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+        List<String> columnNames = tableMeta.getColumnNames();
+
+        List<Integer> matchingRows;
+        if (whereCol == null) {
+            int rowCount = loadColumn(tableName, columnNames.get(0)).getData().size();
+            matchingRows = new ArrayList<>();
+            for (int i = 0; i < rowCount; i++) {
+                matchingRows.add(i);
+            }
+        } else {
+            matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+            if (matchingRows == null || matchingRows.isEmpty()) {
+                return 0;
+            }
+        }
+
+        Map<String, Column> updatedColumns = new HashMap<>();
+
+        for (String colName : columnNames) {
+            Column colData = loadColumn(tableName, colName);
+            List<String> data = colData.getData();
+
+            List<String> newData = new ArrayList<>();
+            for (int i = 0; i < data.size(); i++) {
+                if (!matchingRows.contains(i)) {
+                    newData.add(data.get(i));
+                }
+            }
+
+            colData.setData(new ArrayList<>(newData));
+            updatedColumns.put(colName, colData);
+        }
+
+        if (isTransaction) {
+            transactionBuffer.computeIfAbsent(tableName, k -> new HashMap<>()).putAll(updatedColumns);
+        } else {
+            for (Map.Entry<String, Column> entry : updatedColumns.entrySet()) {
+                fileManager.saveColumnData(tableName, entry.getKey(), entry.getValue());
+            }
+        }
+
+        return matchingRows.size();
+    }
+
+    private List<Integer> findMatchingRows(String tableName, String whereCol, String whereVal) throws FileStorageException {
+        if (whereCol == null) {
+            return null;
+        }
+
+        Column column = loadColumn(tableName, whereCol);
+        List<String> data = column.getData();
+
+        String normalizedWhereVal = normalizeValue(whereVal);
+
+        List<Integer> result = new ArrayList<>();
+
+        for (int i = 0; i < data.size(); i++) {
+            String value = data.get(i);
+            if (value != null && value.equals(normalizedWhereVal)) {
+                result.add(i);
+            }
+        }
+
+        return result;
+    }
+
+    private String normalizeValue(String value) {
+        if (value == null) return null;
+
+        if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
+            return value.substring(1, value.length() - 1);
+        }
+
+        return value;
+    }
+
+    private void validateType(String value, DataType type) throws Exception {
+        try {
+            switch (type) {
+                case INTEGER -> Long.parseLong(value);
+                case REAL -> Double.parseDouble(value);
+            }
+        } catch (NumberFormatException e) {
+            throw new Exception("Type mismatch: expected " + type + ", got '" + value + "'");
+        }
+    }
+
+    private Column loadColumn(String tableName, String colName) throws FileStorageException {
+        if (isTransaction && transactionBuffer.containsKey(tableName)) {
+            Map<String, Column> tableBuffer = transactionBuffer.get(tableName);
+            if (tableBuffer.containsKey(colName)) {
+                Column buffered = tableBuffer.get(colName);
+                Column copy = new Column();
+                copy.setData(new ArrayList<>(buffered.getData()));
+                return copy;
+            }
+        }
+        return fileManager.loadColumnData(tableName, colName);
+    }
+
+    private void restoreSnapshot(Map<String, Map<String, Column>> snapshot) {
+        for (Map.Entry<String, Map<String, Column>> tableEntry : snapshot.entrySet()) {
+            String tableName = tableEntry.getKey();
+            for (Map.Entry<String, Column> colEntry : tableEntry.getValue().entrySet()) {
+                try {
+                    fileManager.saveColumnData(tableName, colEntry.getKey(), colEntry.getValue());
+                } catch (FileStorageException ignored) {
+                    //TODO здесь фатальная ошибка, если мы делаем без журналирования, надо подумать че делать
+                }
+            }
+        }
+    }
+
+    private Column createNewColumnWithNulls(String tableName, String columnName) throws FileStorageException {
+        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+        int rowCount = 0;
+
+        if (!tableMeta.getColumnNames().isEmpty()) {
+            rowCount = loadColumn(tableName, tableMeta.getColumnNames().get(0)).getData().size();
+        }
+
+        Column newColumn = new Column();
+        for (int i = 0; i < rowCount; i++) {
+            newColumn.addData(i, "NULL");
+        }
+
+        return newColumn;
     }
 }

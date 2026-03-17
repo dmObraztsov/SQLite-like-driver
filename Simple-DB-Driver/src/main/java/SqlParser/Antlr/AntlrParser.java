@@ -124,6 +124,22 @@ public class AntlrParser extends SqlParser.Antlr.SQLBaseVisitor<QueryInterface> 
         throw new IllegalArgumentException("Unsupported ALTER TABLE statement");
     }
 
+    @Override
+    public QueryInterface visitDeleteStatement(SQLParser.DeleteStatementContext ctx) {
+        String tableName = ctx.tablename().getText();
+
+        SQLParser.WhereClauseContext whereClause = ctx.whereClause();
+        String whereCol = null;
+        String whereVal = null;
+
+        if (whereClause != null) {
+            whereCol = whereClause.name().getText();
+            whereVal = whereClause.value().getText();
+        }
+
+        return new Queries.DeleteTableQuery(tableName, whereCol, whereVal);
+    }
+
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {
         Constraints constraint;
         String text = currConstraint.getText();
