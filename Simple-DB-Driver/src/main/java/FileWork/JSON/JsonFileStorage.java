@@ -108,17 +108,8 @@ public class JsonFileStorage implements FileStorage {
         File folder = new File(path);
 
         if (folder.exists()) {
-            if (folder.isDirectory()) {
-                return;
-            } else {
-                throw new AlreadyExistsException("A file with the same name already exists: " + path);
-            }
+            throw new AlreadyExistsException("Directory already exists: " + path);
         }
-
-//        File parent = folder.getParentFile();
-//        if (parent != null && !parent.canWrite()) {
-//            throw new PermissionDeniedException("Cannot write to parent directory: " + parent.getAbsolutePath());
-//        }
 
         boolean created = folder.mkdirs();
         if (!created) {

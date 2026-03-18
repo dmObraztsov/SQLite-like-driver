@@ -131,15 +131,24 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
     @Override
     public QueryInterface visitAlterTableStatement(SQLParser.AlterTableStatementContext ctx) {
-        String tableName = ctx.identifier().getText();
+        String tableName = ctx.name().getText();
         SQLParser.AlterActionContext actionCtx = ctx.alterAction();
 
-        if (actionCtx.columnDef() != null) {
-            return new Queries.AlterTableAddColumnQuery(tableName, parseColumn(actionCtx.columnDef()));
-        }
+        if (actionCtx.addColumn() != null) {
+            ColumnMetadata column = parseColumn(actionCtx.addColumn().column());
+            return new Queries.AlterTableAddColumnQuery(tableName, column);
 
-        if (actionCtx.DROP() != null && actionCtx.COLUMN() != null && actionCtx.identifier().size() >= 2) {
-            return new Queries.AlterTableDropColumnQuery(tableName, actionCtx.identifier(0).getText());
+        } else if (actionCtx.dropColumn() != null) {
+            String columnName = actionCtx.dropColumn().name().getText();
+            return new Queries.AlterTableDropColumnQuery(tableName, columnName);
+        } else if (actionCtx.renameColumn() != null) {
+            String oldName = actionCtx.renameColumn().name(0).getText();
+            String newName = actionCtx.renameColumn().name(1).getText();
+            return new Queries.AlterTableRenameColumnQuery(tableName, oldName, newName);
+
+        } else if (actionCtx.renameTable() != null) {
+            String newName = actionCtx.renameTable().name().getText();
+            return new Queries.AlterTableRenameTableQuery(tableName, newName);
         }
 
         throw new IllegalArgumentException("Unsupported ALTER TABLE statement");
@@ -159,6 +168,44 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     public QueryInterface visitRollbackStatement(SQLParser.RollbackStatementContext ctx) {
         return new Queries.RollbackQuery();
     }
+    public QueryInterface visitDeleteStatement(SQLParser.DeleteStatementContext ctx) {
+        String tableName = ctx.tablename().getText();
+
+        SQLParser.WhereClauseContext whereClause = ctx.whereClause();
+        String whereCol = null;
+        String whereVal = null;
+
+        if (whereClause != null) {
+            whereCol = whereClause.name().getText();
+            whereVal = whereClause.value().getText();
+        }
+
+        return new Queries.DeleteTableQuery(tableName, whereCol, whereVal);
+    }
+
+    private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {
+        Constraints constraint;
+        String text = currConstraint.getText();
+        constraint = switch (text) {
+        case "NOTNULL" -> Constraints.NOT_NULL;
+        case "PRIMARYKEY" -> Constraints.PRIMARY_KEY;
+        case "AUTOINCREMENT" -> Constraints.AUTOINCREMENT;
+        case "UNIQUE" -> Constraints.UNIQUE;
+        case "CHECK" -> Constraints.CHECK;
+        case  "DEFAULT" -> Constraints.DEFAULT;
+        default ->  null;
+        };
+        return constraint;
+    }
+
+    private ColumnMetadata parseColumn(SQLParser.ColumnContext columnContext) {
+        DataType dataType = switch (columnContext.TYPE().getText()) {
+            case "INTEGER" -> DataType.INTEGER;
+            case "REAL" -> DataType.REAL;
+            case "TEXT" -> DataType.TEXT;
+            case "NULL" -> DataType.NULL;
+            default -> null;
+        };
 
     private ColumnMetadata parseColumn(SQLParser.ColumnDefContext columnContext) {
         DataType dataType = parseDataType(columnContext.dataType());
