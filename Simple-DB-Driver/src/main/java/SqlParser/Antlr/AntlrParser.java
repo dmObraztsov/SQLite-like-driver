@@ -168,6 +168,8 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     public QueryInterface visitRollbackStatement(SQLParser.RollbackStatementContext ctx) {
         return new Queries.RollbackQuery();
     }
+
+    @Override
     public QueryInterface visitDeleteStatement(SQLParser.DeleteStatementContext ctx) {
         String tableName = ctx.tablename().getText();
 
@@ -176,8 +178,11 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         String whereVal = null;
 
         if (whereClause != null) {
-            whereCol = whereClause.name().getText();
-            whereVal = whereClause.value().getText();
+            SimplePredicate where = extractSimpleWhere(whereClause);
+            if (where != null) {
+                whereCol = where.columnName();
+                whereVal = where.literalValue();
+            }
         }
 
         return new Queries.DeleteTableQuery(tableName, whereCol, whereVal);
@@ -199,13 +204,16 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     }
 
     private ColumnMetadata parseColumn(SQLParser.ColumnContext columnContext) {
-        DataType dataType = switch (columnContext.TYPE().getText()) {
+        DataType dataType = switch (columnContext.dataType().getText()) {
             case "INTEGER" -> DataType.INTEGER;
             case "REAL" -> DataType.REAL;
             case "TEXT" -> DataType.TEXT;
             case "NULL" -> DataType.NULL;
             default -> null;
         };
+
+        return null;
+    }
 
     private ColumnMetadata parseColumn(SQLParser.ColumnDefContext columnContext) {
         DataType dataType = parseDataType(columnContext.dataType());

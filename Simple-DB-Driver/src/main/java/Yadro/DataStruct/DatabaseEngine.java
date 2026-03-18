@@ -85,7 +85,7 @@ public class DatabaseEngine {
                 validateType(valueToInsert, colMeta.getType());
             }
 
-            finalValues.put(colName, valueToInsert);
+            finalValues.put(colName, normalizeValue(valueToInsert));
             columnsToUpdate.put(colName, colData);
         }
 
