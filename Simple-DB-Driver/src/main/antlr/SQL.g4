@@ -133,49 +133,49 @@ dataType
     ;
 
 // ── Keywords ──────────────────────────────────────────────
-SELECT      : 'SELECT';
-FROM        : 'FROM';
-WHERE       : 'WHERE';
-JOIN        : 'JOIN';
-DELETE      : 'DELETE';
-ON          : 'ON';
+SELECT      : [sS] [eE] [lL] [eE] [cC] [tT];
+FROM         : [fF] [rR] [oO] [mM];
+WHERE        : [wW] [hH] [eE] [rR] [eE];
+JOIN         : [jJ] [oO] [iI] [nN];
+DELETE       : [dD] [eE] [lL] [eE] [tT] [eE];
+ON           : [oO] [nN];
 
-CREATE      : 'CREATE';
-DROP        : 'DROP';
-USE         : 'USE';
-ALTER       : 'ALTER';
-ADD         : 'ADD';
-COLUMN      : 'COLUMN';
-RENAME      : 'RENAME';
-TO          : 'TO';
-INSERT      : 'INSERT';
-INTO        : 'INTO';
-VALUES      : 'VALUES';
+CREATE      : [cC] [rR] [eE] [aA] [tT] [eE];
+DROP        : [dD] [rR] [oO] [pP];
+USE         : [uU] [sS] [eE];
+ALTER       : [aA] [lL] [tT] [eE] [rR];
+ADD         : [aA] [dD] [Dd];
+COLUMN      : [cC] [oO] [lL] [uU] [mM] [nN];
+RENAME      : [rR] [eE] [nN] [aA] [mM] [eE];
+TO          : [tT] [oO];
+INSERT      : [iI] [nN] [sS] [eE] [rR] [tT];
+INTO        : [iI] [nN] [tT] [oO];
+VALUES      : [vV] [aA] [lL] [uU] [eE] [sS];
 
-DATABASE    : 'DATABASE';
-TABLE       : 'TABLE';
-TRANSACTION : 'TRANSACTION';
-BEGIN       : 'BEGIN';
-COMMIT      : 'COMMIT';
-ROLLBACK    : 'ROLLBACK';
+DATABASE    : [dD] [aA] [tT] [aA] [bB] [aA] [sS] [eE];
+TABLE       : [tT] [aA] [bB] [lL] [eE];
+TRANSACTION : [tT] [rR] [aA] [nN] [sS] [aA] [cC] [tT] [iI] [oO] [nN];
+BEGIN       : [bB] [eE] [gG] [iI] [nN];
+COMMIT      : [cC] [oO] [mM] [mM] [iI] [tT];
+ROLLBACK    : [rR] [oO] [lL] [lL] [bB] [aA] [cC] [kK];
 
-IF          : 'IF';
-NOT         : 'NOT';
-NULL        : 'NULL';
-EXISTS      : 'EXISTS';
-PRIMARY     : 'PRIMARY';
-KEY         : 'KEY';
-AUTOINCREMENT: 'AUTOINCREMENT';
-UNIQUE      : 'UNIQUE';
-CHECK       : 'CHECK';
-DEFAULT     : 'DEFAULT';
-AND         : 'AND';
-OR          : 'OR';
+IF          : [iI] [fF];
+NOT         : [Nn] [Oo] [Tt];
+NULL        : [nN] [uU] [lL] [lL];
+EXISTS      : [eE] [xX] [iI] [sS] [tT] [sS];
+PRIMARY     : [pP] [rR] [iI] [mM] [aA] [rR] [yY];
+KEY         : [kK] [eE] [yY];
+AUTOINCREMENT: [aA] [uU] [tT] [oO] [iI] [nN] [cC] [rR] [eE] [mM] [eE] [nN] [tT];
+UNIQUE      : [uU] [nN] [iI] [qQ] [uU] [eE];
+CHECK       : [cC] [hH] [eE] [cC] [kK];
+DEFAULT     : [dD] [eE] [fF] [aA] [uU] [lL] [tT];
+AND         : [aA] [nN] [dD];
+OR          : [oO] [rR];
 
-INTEGER     : 'INTEGER';
-REAL        : 'REAL';
-TEXT        : 'TEXT';
-BLOB        : 'BLOB';
+INTEGER     : [iI] [nN] [tT] [eE] [gG] [eE] [rR];
+REAL        : [rR] [eE] [aA] [lL];
+TEXT        : [tT] [eE] [xX] [tT];
+BLOB        : [bB] [lL] [oO] [bB];
 
 // ── Operators ─────────────────────────────────────────────
 EQ  : '=';
