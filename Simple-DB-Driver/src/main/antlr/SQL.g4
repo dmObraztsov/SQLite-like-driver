@@ -10,6 +10,7 @@ query
     | insertTableStatement
     | selectStatement
     | deleteStatement
+    | updateStatement
     | beginTransactionStatement
     | commitStatement
     | rollbackStatement
@@ -44,6 +45,8 @@ insertTableStatement :
 selectStatement : SELECT selectCols FROM tablename joinClause* whereClause?;
 
 deleteStatement : DELETE FROM tablename whereClause?;
+
+updateStatement : UPDATE tablename SET (column EQ literal)+;
 
 selectCols
     : STAR
@@ -132,7 +135,6 @@ dataType
     | BLOB
     ;
 
-// ── Keywords ──────────────────────────────────────────────
 SELECT      : [sS] [eE] [lL] [eE] [cC] [tT];
 FROM         : [fF] [rR] [oO] [mM];
 WHERE        : [wW] [hH] [eE] [rR] [eE];
@@ -149,6 +151,7 @@ COLUMN      : [cC] [oO] [lL] [uU] [mM] [nN];
 RENAME      : [rR] [eE] [nN] [aA] [mM] [eE];
 TO          : [tT] [oO];
 INSERT      : [iI] [nN] [sS] [eE] [rR] [tT];
+UPDATE      : [uU] [pP] [dD] [aA] [tT] [eE];
 INTO        : [iI] [nN] [tT] [oO];
 VALUES      : [vV] [aA] [lL] [uU] [eE] [sS];
 
@@ -177,7 +180,6 @@ REAL        : [rR] [eE] [aA] [lL];
 TEXT        : [tT] [eE] [xX] [tT];
 BLOB        : [bB] [lL] [oO] [bB];
 
-// ── Operators ─────────────────────────────────────────────
 EQ  : '=';
 NE  : '!=' | '<>';
 GE  : '>=';
@@ -185,14 +187,12 @@ LE  : '<=';
 GT  : '>';
 LT  : '<';
 
-// ── Punctuation ───────────────────────────────────────────
 STAR   : '*';
 DOT    : '.';
 COMMA  : ',';
 LPAREN : '(';
 RPAREN : ')';
 
-// ── Literals & whitespace ─────────────────────────────────
 NAME   : [a-zA-Z_][a-zA-Z_0-9]*;
 STRING : '"' (~["\\] | '\\' .)* '"';
 NUMBER : [0-9]+ ('.' [0-9]+)?;
