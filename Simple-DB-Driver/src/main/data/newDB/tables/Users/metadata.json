@@ -1,6 +1,6 @@
 {
-  "columnCount" : 2,
+  "columnCount" : 4,
   "countAutoIncrements" : 0,
   "countDefaults" : 0,
-  "columnNames" : [ "id", "name" ]
+  "columnNames" : [ "id", "name", "email", "age" ]
 }

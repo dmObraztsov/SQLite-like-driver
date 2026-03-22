@@ -139,9 +139,18 @@ public class Queries {
 
     public record DeleteTableQuery(String tableName, String whereCol, String whereValue) implements QueryInterface {
         @Override
-        public ExecutionResult execute(DatabaseEngine engine) throws Exception {
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
             int deletedRows = engine.delete(tableName, whereCol, whereValue);
             String message = (deletedRows > 0) ? deletedRows + " row(s) deleted from '" + tableName + "'." : "No matching rows found in '" + tableName + "'.";
+            return new ExecutionResult(true, message);
+        }
+    }
+
+    public record UpdateTableQuery(String tableName, Map<String, String> setValues, String whereCol, String whereValue) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
+            int updatedRows = engine.update(tableName, setValues, whereCol, whereValue);
+            String message = (updatedRows > 0) ? updatedRows + " row(s) updated in '" + tableName + "'." : "No matching rows found in '" + tableName + "'.";
             return new ExecutionResult(true, message);
         }
     }

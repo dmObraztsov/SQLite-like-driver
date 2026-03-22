@@ -17,6 +17,8 @@ public class ColumnMetadata {
     private int size;
     private ArrayList<Constraints> constraints = new ArrayList<>();
     private Collate collate;
+    private String defaultValue;
+    private String checkExpression;
 
     public ColumnMetadata() {}
 
@@ -27,7 +29,7 @@ public class ColumnMetadata {
         this.constraints = constraints;
         this.collate = collate;
     }
-    
+
     public void incrementSize() {
         this.size++;
     }
