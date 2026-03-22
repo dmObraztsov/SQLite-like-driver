@@ -42,15 +42,19 @@ insertTableStatement :
     INSERT INTO identifier (LPAREN identifier (COMMA identifier)* RPAREN)?
     VALUES LPAREN literal (COMMA literal)* RPAREN;
 
-selectStatement : SELECT selectCols FROM tablename joinClause* whereClause?;
+selectStatement : SELECT distinctClause? selectCols FROM tablename joinClause* whereClause?;
 
 deleteStatement : DELETE FROM tablename whereClause?;
 updateStatement : UPDATE tablename SET updateAssignment (COMMA updateAssignment)* whereClause?;
+aggregateFunc: funcName LPAREN (STAR | columnRef) RPAREN;
 
-selectCols : STAR | columnRef (COMMA columnRef)*;
+selectCols : DISTINCT? (STAR
+                        | aggregateFunc (COMMA aggregateFunc)?
+                        | columnRef (COMMA columnRef)*);
 
 joinClause : JOIN tablename ON condition;
 whereClause : WHERE condition;
+distinctClause : DISTINCT;
 
 condition : orCondition;
 orCondition : andCondition (OR andCondition)*;
@@ -83,6 +87,14 @@ column : name dataType constraint*;
 columnRef : identifier (DOT identifier)?;
 
 updateAssignment : columnRef EQ operand;
+
+funcName
+    : COUNT
+    | SUM
+    | AVG
+    | MIN
+    | MAX
+    ;
 
 columnConstraint
     : notNullConstraint
@@ -134,6 +146,7 @@ dataType
     ;
 
 SELECT      : [sS] [eE] [lL] [eE] [cC] [tT];
+DISTINCT : [dD][iI][sS][tT][iI][nN][cC][tT];
 FROM         : [fF] [rR] [oO] [mM];
 WHERE        : [wW] [hH] [eE] [rR] [eE];
 JOIN         : [jJ] [oO] [iI] [nN];
@@ -141,6 +154,12 @@ DELETE       : [dD] [eE] [lL] [eE] [tT] [eE];
 UPDATE : [uU] [pP] [dD] [aA] [tT] [eE];
 SET : [sS] [eE] [tT];
 ON           : [oO] [nN];
+
+COUNT : [cC][oO][uU][nN][tT];
+SUM : [sS][uU][mM];
+AVG : [aA][vV][gG];
+MIN : [mM][iI][nN];
+MAX : [mM][aA][xX];
 
 CREATE      : [cC] [rR] [eE] [aA] [tT] [eE];
 DROP        : [dD] [rR] [oO] [pP];
