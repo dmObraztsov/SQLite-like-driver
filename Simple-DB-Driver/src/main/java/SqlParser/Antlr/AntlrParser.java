@@ -60,7 +60,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         for (SQLParser.LiteralContext literalContext : ctx.literal()) {
-            values.add(literalContext.getText());
+            values.add(getCleanLiteral(literalContext));
         }
 
         return new Queries.InsertTableQuery(tableName, columns, values);
@@ -393,7 +393,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
         return new SimplePredicate(
                 toUnqualifiedColumnName(predicate.operand(0).columnRef()),
-                predicate.operand(1).literal().getText()
+                getCleanLiteral(predicate.operand(1).literal())
         );
     }
 
@@ -433,5 +433,21 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     }
 
     private record SimpleJoin(String rightTableName, String leftColumnName, String rightColumnName) {
+    }
+
+    private String getCleanLiteral(SQLParser.LiteralContext ctx) {
+        if (ctx == null) return null;
+
+        if (ctx.STRING() != null) {
+            String text = ctx.STRING().getText();
+            if (text.length() >= 2 && (text.startsWith("\"") || text.startsWith("'"))) {
+                return text.substring(1, text.length() - 1);
+            }
+            return text;
+        }
+
+        if (ctx.NULL() != null) return null;
+
+        return ctx.getText();
     }
 }

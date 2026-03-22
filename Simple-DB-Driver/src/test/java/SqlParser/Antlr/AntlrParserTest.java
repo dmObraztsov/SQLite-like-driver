@@ -73,7 +73,7 @@ class AntlrParserTest {
 
             assertEquals("users", q.tableName());
             assertEquals(List.of("id", "name"), q.columnNames());
-            assertEquals(List.of("1", "\"Alice\""), q.values());
+            assertEquals(List.of("1", "Alice"), q.values());
         }
 
         @Test

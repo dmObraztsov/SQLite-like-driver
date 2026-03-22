@@ -81,26 +81,40 @@ public class Queries {
             List<Row> projectedRows = new ArrayList<>();
 
             for (Row row : rawJoinedRows) {
+                if (columns1 == null && columns2 == null) {
+                    projectedRows.add(row);
+                    continue;
+                }
+
                 Map<String, String> filteredValues = new HashMap<>();
 
                 if (columns1 != null) {
                     for (String col : columns1) {
-                        String key = table1Name + "." + col;
-                        filteredValues.put(key, row.get(key));
-                    }
-                }
-                if (columns2 != null) {
-                    for (String col : columns2) {
-                        String key = table2Name + "." + col;
-                        filteredValues.put(key, row.get(key));
+                        String fullKey = table1Name + "." + col;
+                        String value = row.get(fullKey);
+                        if (value != null) {
+                            filteredValues.put(fullKey, value);
+                            if (!col.equalsIgnoreCase("id")) {
+                                filteredValues.putIfAbsent(col, value);
+                            }
+                        }
                     }
                 }
 
-                if (columns1 == null && columns2 == null) {
-                    projectedRows.add(row);
-                } else {
-                    projectedRows.add(new Row(filteredValues));
+                if (columns2 != null) {
+                    for (String col : columns2) {
+                        String fullKey = table2Name + "." + col;
+                        String value = row.get(fullKey);
+                        if (value != null) {
+                            filteredValues.put(fullKey, value);
+                            if (!col.equalsIgnoreCase("id")) {
+                                filteredValues.putIfAbsent(col, value);
+                            }
+                        }
+                    }
                 }
+
+                projectedRows.add(new Row(filteredValues));
             }
 
             List<Row> finalResult = projectedRows;

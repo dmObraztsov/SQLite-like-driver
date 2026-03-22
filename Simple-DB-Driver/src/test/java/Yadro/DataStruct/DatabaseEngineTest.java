@@ -178,7 +178,7 @@ class DatabaseEngineTest {
         when(fileManager.loadColumnData("users", "id")).thenReturn(ids);
         when(fileManager.loadColumnData("users", "name")).thenReturn(names);
 
-        List<Row> rows = engine.select("users", null, true, null, null);
+        List<Row> rows = engine.select("users", null, true, null, null, false);
 
         assertThat(rows).hasSize(2);
         assertThat(rows.get(0).get("id")).isEqualTo("1");
@@ -201,10 +201,10 @@ class DatabaseEngineTest {
         when(fileManager.loadColumnData("users", "id")).thenReturn(ids);
         when(fileManager.loadColumnData("users", "name")).thenReturn(names);
 
-        List<Row> rows = engine.select("users", List.of("id", "name"), false, "id", "2");
+        List<Row> rows = engine.select("users", List.of("id", "name"), false, "id", "2", false);
 
         assertThat(rows).hasSize(1);
-        assertThat(rows.getFirst().get("name")).isEqualTo("Bob");
+        assertThat(rows.get(0).get("name")).isEqualTo("Bob");
     }
 
     @Test
@@ -237,8 +237,8 @@ class DatabaseEngineTest {
         List<Row> rows = engine.join("users", List.of("id"), "profiles", List.of("city"), "id", "userId");
 
         assertThat(rows).hasSize(1);
-        assertThat(rows.getFirst().get("users.id")).isEqualTo("2");
-        assertThat(rows.getFirst().get("profiles.city")).isEqualTo("Paris");
+        assertThat(rows.get(0).get("users.id")).isEqualTo("2");
+        assertThat(rows.get(0).get("profiles.city")).isEqualTo("Paris");
     }
 
     @Test

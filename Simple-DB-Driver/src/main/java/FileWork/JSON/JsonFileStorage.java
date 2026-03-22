@@ -10,6 +10,19 @@ import java.io.IOException;
 
 public class JsonFileStorage implements FileStorage {
     private final ObjectMapper mapper = JacksonConfig.createConfiguredMapper();
+    private final String basePath;
+
+    public JsonFileStorage(String basePath) {
+        this.basePath = basePath;
+        File dir = new File(basePath);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+    }
+
+    public JsonFileStorage() {
+        this("database");
+    }
 
     @Override
     public boolean exists(String path) {
@@ -162,12 +175,15 @@ public class JsonFileStorage implements FileStorage {
         }
     }
 
-    private boolean deleteFolder(File folder) { //TODO можно добавить вывод тру или фолз после каждого удаления, чтобы можно было понять, какой именно файл не смогли удалить
+    private boolean deleteFolder(File folder) {
         if (folder.isDirectory()) {
             File[] files = folder.listFiles();
             if (files != null) {
                 for (File file : files) {
-                    deleteFolder(file);
+                    if (!deleteFolder(file)) {
+                        System.err.println("Failed to delete: " + file.getAbsolutePath());
+                        return false;
+                    }
                 }
             }
         }

@@ -30,7 +30,7 @@ class ExecutionResultTest {
         assertTrue(result.isSuccess());
         assertEquals("Success", result.getMessage());
         assertEquals(1, result.getRows().size());
-        assertEquals(mockRow, result.getRows().getFirst());
+        assertEquals(mockRow, result.getRows().get(0));
     }
 
     @Test

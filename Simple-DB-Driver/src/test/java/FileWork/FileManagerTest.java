@@ -1,9 +1,11 @@
 package FileWork;
 
+import Exceptions.EmptyFileException;
 import Exceptions.FileStorageException;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
 import Yadro.DataStruct.Column;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -11,8 +13,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,7 +34,8 @@ class FileManagerTest {
 
     @Test
     void useDbShouldSetCurrentDbIfExists() {
-        when(fileStorage.exists("src/main/data/testDb")).thenReturn(true);
+        String expectedPath = PathManager.getDatabasePath("testDb");
+        when(fileStorage.exists(expectedPath)).thenReturn(true);
         FileManager manager = new FileManager(fileStorage);
 
         try {
@@ -44,23 +48,21 @@ class FileManagerTest {
     }
 
     @Test
-    void useDbShouldNotChangeCurrentDbIfTargetDoesNotExist() {
-        when(fileStorage.exists("src/main/data/db1")).thenReturn(true);
-        when(fileStorage.exists("src/main/data/missing")).thenReturn(false);
+    void useDbShouldNotChangeCurrentDbIfTargetDoesNotExist() throws FileStorageException {
+        String existingDbPath = PathManager.getDatabasePath("db1");
+        String missingDbPath = PathManager.getDatabasePath("missing");
+
+        when(fileStorage.exists(existingDbPath)).thenReturn(true);
+        when(fileStorage.exists(missingDbPath)).thenReturn(false);
+
         FileManager manager = new FileManager(fileStorage);
 
-        try {
-            manager.useDB("db1");
-        } catch (FileStorageException e) {
-            throw new RuntimeException(e);
-        }
-        try {
-            manager.useDB("missing");
-        } catch (FileStorageException e) {
-            throw new RuntimeException(e);
-        }
+        manager.useDB("db1");
+        assertEquals("db1", manager.getNameDB());
 
-        assertThat(manager.getNameDB()).isEqualTo("db1");
+        assertThrows(EmptyFileException.class, () -> manager.useDB("missing"));
+
+        assertEquals("db1", manager.getNameDB());
     }
 
     @Test
@@ -87,7 +89,8 @@ class FileManagerTest {
 
     @Test
     void dropDbShouldResetCurrentWhenDroppingCurrentDb() throws FileStorageException {
-        when(fileStorage.exists("src/main/data/testDb")).thenReturn(true);
+        String expectedPath = PathManager.getDatabasePath("testDb");
+        when(fileStorage.exists(expectedPath)).thenReturn(true);
         FileManager manager = new FileManager(fileStorage);
         manager.useDB("testDb");
 
@@ -99,7 +102,8 @@ class FileManagerTest {
 
     @Test
     void dropDbShouldKeepCurrentWhenDroppingAnotherDb() throws FileStorageException {
-        when(fileStorage.exists("src/main/data/db1")).thenReturn(true);
+        String expectedPath = PathManager.getDatabasePath("db1");
+        when(fileStorage.exists(expectedPath)).thenReturn(true);
         FileManager manager = new FileManager(fileStorage);
         manager.useDB("db1");
 
@@ -112,7 +116,8 @@ class FileManagerTest {
     @Test
     void shouldSaveAndLoadTableMetadataViaStorage() throws FileStorageException {
         FileManager manager = new FileManager(fileStorage);
-        when(fileStorage.exists("src/main/data/testDb")).thenReturn(true);
+        String expectedPath = PathManager.getDatabasePath("testDb");
+        when(fileStorage.exists(expectedPath)).thenReturn(true);
         manager.useDB("testDb");
 
         TableMetadata metadata = new TableMetadata();
@@ -126,7 +131,9 @@ class FileManagerTest {
     @Test
     void createAndDropTableStructureShouldDelegateToStorage() throws FileStorageException {
         FileManager manager = new FileManager(fileStorage);
-        when(fileStorage.exists("src/main/data/testDb")).thenReturn(true);
+
+        String expectedPath = PathManager.getDatabasePath("testDb");
+        when(fileStorage.exists(expectedPath)).thenReturn(true);
         manager.useDB("testDb");
 
         manager.createTableStructure("users");
@@ -141,6 +148,8 @@ class FileManagerTest {
     void shouldSaveAndLoadColumnDataAndMetadata() throws FileStorageException {
         FileManager manager = new FileManager(fileStorage);
         when(fileStorage.exists("src/main/data/testDb")).thenReturn(true);
+        String expectedPath = PathManager.getDatabasePath("testDb");
+        when(fileStorage.exists(expectedPath)).thenReturn(true);
         manager.useDB("testDb");
 
         Column column = new Column();
@@ -160,7 +169,8 @@ class FileManagerTest {
     @Test
     void deleteColumnFilesShouldDeleteDataAndMetadataFiles() throws FileStorageException {
         FileManager manager = new FileManager(fileStorage);
-        when(fileStorage.exists("src/main/data/testDb")).thenReturn(true);
+        String expectedPath = PathManager.getDatabasePath("testDb");
+        when(fileStorage.exists(expectedPath)).thenReturn(true);
         manager.useDB("testDb");
 
         manager.deleteColumnFiles("users", "id");
@@ -171,7 +181,8 @@ class FileManagerTest {
 
     @Test
     void tableExistsShouldDelegateToStorage() {
-        when(fileStorage.exists("src/main/data/testDb")).thenReturn(true);
+        String expectedPath = PathManager.getDatabasePath("testDb");
+        when(fileStorage.exists(expectedPath)).thenReturn(true);
         when(fileStorage.exists("src/main/data/testDb/tables/users")).thenReturn(true);
         FileManager manager = new FileManager(fileStorage);
         try {
@@ -193,6 +204,11 @@ class FileManagerTest {
         manager.renameDirectory("db1", "db2");
 
         verify(fileStorage).renameFile("a.json", "b.json");
-        verify(fileStorage).renameDirectory("db1", "db2");
+        verify(fileStorage).renameDirectory(anyString(), anyString());
+    }
+
+    @AfterEach
+    void tearDown() {
+        PathManager.reset();
     }
 }

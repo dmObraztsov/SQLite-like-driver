@@ -104,10 +104,10 @@ class QueriesTest {
         @Test
         void testSelectDataQuery() throws Exception {
             List<Row> mockRows = List.of(new Row(Map.of("id", "1")));
-            when(engine.select(TABLE_NAME, List.of("id"), false, "id", "1"))
+            when(engine.select(TABLE_NAME, List.of("id"), false, "id", "1", false))
                     .thenReturn(mockRows);
 
-            var query = new Queries.SelectDataQuery(List.of("id"), false, TABLE_NAME, "id", "1");
+            var query = new Queries.SelectDataQuery(List.of("id"), false, TABLE_NAME, "id", "1", false);
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.isSuccess());
@@ -116,15 +116,24 @@ class QueriesTest {
 
         @Test
         void testJoinTableQuery() throws Exception {
-            List<Row> mockRows = List.of(new Row(Map.of("id", "1", "name", "test")));
+            List<Row> rawMockRows = List.of(new Row(Map.of(
+                    "t1.id", "1",
+                    "t1.name", "test",
+                    "t2.id", "1",
+                    "t2.city", "NSK"
+            )));
             when(engine.join("t1", List.of("id"), "t2", List.of("id"), "id", "id"))
-                    .thenReturn(mockRows);
+                    .thenReturn(rawMockRows);
 
-            var query = new Queries.JoinTableQuery("t1", List.of("id"), "t2", List.of("id"), "id", "id");
+            var query = new Queries.JoinTableQuery("t1", List.of("id"), "t2", List.of("id"), "id", "id", false);
             ExecutionResult result = query.execute(engine);
 
+            List<Row> expectedRows = List.of(new Row(Map.of(
+                    "t1.id", "1",
+                    "t2.id", "1"
+            )));
             assertTrue(result.isSuccess());
-            assertEquals(mockRows, result.getRows());
+            assertEquals(expectedRows, result.getRows(), "Результат должен содержать только спроецированные колонки id");
         }
     }
 

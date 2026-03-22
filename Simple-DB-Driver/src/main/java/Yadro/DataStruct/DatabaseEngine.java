@@ -59,6 +59,15 @@ public class DatabaseEngine {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table not found");
 
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+        List<String> allTableColumns = tableMeta.getColumnNames();
+
+        if (columnNames == null || columnNames.isEmpty()) {
+            if (values.size() != allTableColumns.size()) {
+                throw new Exception("Column count mismatch");
+            }
+            columnNames = allTableColumns;
+        }
+
 
         Map<String, Column> columnsToUpdate = new HashMap<>();
         Map<String, String> finalValues = new HashMap<>();
@@ -67,7 +76,13 @@ public class DatabaseEngine {
             ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, colName);
             Column colData = loadColumn(tableName, colName);
 
-            int colIndex = columnNames.indexOf(colName);
+            int colIndex = -1;
+            for (int j = 0; j < columnNames.size(); j++) {
+                if (columnNames.get(j).equalsIgnoreCase(colName)) {
+                    colIndex = j;
+                    break;
+                }
+            }
             String valueToInsert;
 
             if (colIndex != -1) {
@@ -244,7 +259,9 @@ public class DatabaseEngine {
             for (Map.Entry<String, Map<String, Column>> tableEntry : transactionBuffer.entrySet()) {
                 String tableName = tableEntry.getKey();
                 for (Map.Entry<String, Column> colEntry : tableEntry.getValue().entrySet()) {
-                    fileManager.saveColumnData(tableName, colEntry.getKey(), colEntry.getValue());
+                    ArrayList<String> dataCopy = new ArrayList<>(colEntry.getValue().getData());
+                    Column columnToSave = new Column(dataCopy);
+                    fileManager.saveColumnData(tableName, colEntry.getKey(), columnToSave);
                 }
             }
         } catch (FileStorageException e) {

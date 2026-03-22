@@ -1,10 +1,22 @@
 package FileWork;
 
 public class PathManager {
-    static private final String BASE_PATH = "src/main/data/";
+    static private String basePath = "src/main/data";
+
+    public static void setBasePath(String newPath) {
+        if (newPath.endsWith("/") || newPath.endsWith("\\")) {
+            basePath = newPath.substring(0, newPath.length() - 1);
+        } else {
+            basePath = newPath;
+        }
+    }
+
+    public static void reset() {
+        basePath = "src/main/data";
+    }
 
     public static String getDatabasePath(String dataBaseName) {
-        return BASE_PATH + dataBaseName;
+        return basePath + "/" + dataBaseName;
     }
 
     public static String getDatabaseMetadataPath(String dataBaseName) {
