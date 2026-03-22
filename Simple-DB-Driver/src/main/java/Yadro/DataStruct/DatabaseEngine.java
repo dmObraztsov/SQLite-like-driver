@@ -1,6 +1,10 @@
 package Yadro.DataStruct;
 
 import Exceptions.*;
+import Exceptions.AlreadyExistsException;
+import Exceptions.FileStorageException;
+import Exceptions.NoFileException;
+import Exceptions.NoTableException;
 import FileWork.FileManager;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
@@ -206,6 +210,10 @@ public class DatabaseEngine {
         }
         transactionBuffer.clear();
         isTransaction = false;
+    }
+
+    public boolean isTransactionActive() {
+        return isTransaction;
     }
 
     public void alterTableAddColumn(String tableName, ColumnMetadata column) throws FileStorageException {
