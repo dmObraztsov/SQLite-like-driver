@@ -1,5 +1,6 @@
 package Yadro.DataStruct;
 
+import Exceptions.*;
 import Exceptions.AlreadyExistsException;
 import Exceptions.FileStorageException;
 import Exceptions.NoFileException;
@@ -59,7 +60,6 @@ public class DatabaseEngine {
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
 
         Map<String, Column> columnsToUpdate = new HashMap<>();
-        Map<String, String> finalValues = new HashMap<>();
 
         for (String colName : tableMeta.getColumnNames()) {
             ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, colName);
@@ -70,59 +70,13 @@ public class DatabaseEngine {
 
             if (colIndex != -1) {
                 valueToInsert = values.get(colIndex);
-            } else if (colMeta.getDefaultValue() != null) {
-                valueToInsert = colMeta.getDefaultValue();
+                validateType(valueToInsert, colMeta.getType());
             } else {
                 valueToInsert = "NULL";
             }
 
-            if (colMeta.getConstraints().contains(Constraints.AUTOINCREMENT) && valueToInsert.equals("NULL")) {
-                int nextValue = colData.getData().size() + 1;
-                valueToInsert = String.valueOf(nextValue);
-            }
-
-            if (!valueToInsert.equals("NULL")) {
-                validateType(valueToInsert, colMeta.getType());
-            }
-
-            finalValues.put(colName, normalizeValue(valueToInsert));
+            colData.addData(colData.getData().size(), valueToInsert);
             columnsToUpdate.put(colName, colData);
-        }
-
-        for (String colName : tableMeta.getColumnNames()) {
-            ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, colName);
-            Column colData = loadColumn(tableName, colName);
-            String value = finalValues.get(colName);
-
-            boolean isPrimaryKey = colMeta.getConstraints().contains(Constraints.PRIMARY_KEY);
-            boolean isNotNull = colMeta.getConstraints().contains(Constraints.NOT_NULL);
-            boolean isUnique = colMeta.getConstraints().contains(Constraints.UNIQUE);
-
-            if (isPrimaryKey) {
-                isNotNull = true;
-                isUnique = true;
-            }
-
-            if (isNotNull && value.equals("NULL")) {
-                throw new Exception("Column " + colName + " can not be NULL");
-            }
-
-            if (isUnique && !value.equals("NULL") && colData.getData().contains(value)) {
-                throw new Exception("Column " + colName + " is UNIQUE and it already contains " + value);
-            }
-
-            if (colMeta.getConstraints().contains(Constraints.CHECK)
-                    && colMeta.getCheckExpression() != null
-                    && !value.equals("NULL")
-                    && !evaluateSimpleCheck(colMeta.getCheckExpression(), colName, value)) {
-                throw new Exception("CHECK constraint failed for column " + colName + ": " + colMeta.getCheckExpression());
-            }
-        }
-
-        for (String colName : tableMeta.getColumnNames()) {
-            Column colData = columnsToUpdate.get(colName);
-            String value = finalValues.get(colName);
-            colData.addData(colData.getData().size(), value);
         }
 
         if (isTransaction) {
@@ -262,61 +216,6 @@ public class DatabaseEngine {
         return isTransaction;
     }
 
-
-    private boolean evaluateSimpleCheck(String expression, String columnName, String value) {
-        String normalized = expression.replaceAll("\\s+", "");
-        String[] operators = {">=", "<=", "!=", "<>", "=", ">", "<"};
-
-        for (String operator : operators) {
-            int idx = normalized.indexOf(operator);
-            if (idx <= 0) {
-                continue;
-            }
-
-            String left = normalized.substring(0, idx);
-            String right = normalized.substring(idx + operator.length());
-            if (!left.equals(columnName)) {
-                continue;
-            }
-
-            return compareCheckValues(value, right, operator);
-        }
-
-        return true;
-    }
-
-    private boolean compareCheckValues(String value, String rightOperand, String operator) {
-        boolean numericCompare = isNumeric(value) && isNumeric(rightOperand);
-
-        int cmp;
-        if (numericCompare) {
-            double leftNum = Double.parseDouble(value);
-            double rightNum = Double.parseDouble(rightOperand);
-            cmp = Double.compare(leftNum, rightNum);
-        } else {
-            cmp = value.compareTo(rightOperand);
-        }
-
-        return switch (operator) {
-            case "=" -> cmp == 0;
-            case "!=", "<>" -> cmp != 0;
-            case ">" -> cmp > 0;
-            case "<" -> cmp < 0;
-            case ">=" -> cmp >= 0;
-            case "<=" -> cmp <= 0;
-            default -> true;
-        };
-    }
-
-    private boolean isNumeric(String value) {
-        try {
-            Double.parseDouble(value);
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
-
     public void alterTableAddColumn(String tableName, ColumnMetadata column) throws FileStorageException {
         if (!fileManager.tableExists(tableName)) {
             throw new NoTableException("Table does not exist: " + tableName);
@@ -445,6 +344,117 @@ public class DatabaseEngine {
         return matchingRows.size();
     }
 
+    public int update(String tableName, Map<String, String> setValues, String whereCol, String whereVal) throws FileStorageException {
+
+        if (!fileManager.tableExists(tableName)) {
+            throw new NoTableException("Table not found: " + tableName);
+        }
+
+        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+        List<String> columnNames = tableMeta.getColumnNames();
+        List<Integer> matchingRows;
+
+        if (whereCol == null) {
+            int rowCount = loadColumn(tableName, columnNames.get(0)).getData().size();
+            matchingRows = new ArrayList<>();
+            for (int i = 0; i < rowCount; i++) {
+                matchingRows.add(i);
+            }
+        } else {
+            if (!columnNames.contains(whereCol)) {
+                throw new NoFileException("Column does not exist: " + whereCol);
+            }
+            matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+            if (matchingRows == null || matchingRows.isEmpty()) {
+                return 0;
+            }
+        }
+
+        Map<String, Column> updatedColumns = new HashMap<>();
+        Map<String, ColumnMetadata> metadataMap = new HashMap<>();
+
+        for (String colName : columnNames) {
+            updatedColumns.put(colName, loadColumn(tableName, colName));
+            metadataMap.put(colName, fileManager.loadColumnMetadata(tableName, colName));
+        }
+
+        for (String col : setValues.keySet()) {
+            if (!columnNames.contains(col)) {
+                throw new NoFileException("Column does not exist: " + col);
+            }
+        }
+
+        for (int rowIndex : matchingRows) {
+            for (Map.Entry<String, String> entry : setValues.entrySet()) {
+
+                String colName = entry.getKey();
+                String newValue = normalizeValue(entry.getValue());
+
+                Column column = updatedColumns.get(colName);
+                ColumnMetadata colMeta = metadataMap.get(colName);
+
+                if (!newValue.equals("NULL")) {
+                    try {
+                        validateType(newValue, colMeta.getType());
+                    } catch (Exception e) {
+                        throw new FileTypeException("Type mismatch for column " + colName + ": " + newValue);
+                    }
+                }
+
+                column.getData().set(rowIndex, newValue);
+            }
+        }
+
+        for (String colName : columnNames) {
+            Column column = updatedColumns.get(colName);
+            ColumnMetadata colMeta = metadataMap.get(colName);
+
+            boolean isPrimaryKey = colMeta.getConstraints().contains(Constraints.PRIMARY_KEY);
+            boolean isNotNull = colMeta.getConstraints().contains(Constraints.NOT_NULL);
+            boolean isUnique = colMeta.getConstraints().contains(Constraints.UNIQUE);
+
+            if (isPrimaryKey) {
+                isNotNull = true;
+                isUnique = true;
+            }
+
+            List<String> data = column.getData();
+            Set<String> uniqueCheck = new HashSet<>();
+
+            for (String value : data) {
+                if (isNotNull && value.equals("NULL")) {
+                    throw new FileStorageException("Column '" + colName + "' cannot be NULL");
+                }
+
+                if (isUnique && !value.equals("NULL")) {
+                    if (!uniqueCheck.add(value)) {
+                        throw new AlreadyExistsException(
+                                "Duplicate value '" + value + "' in column '" + colName + "'"
+                        );
+                    }
+                }
+
+                if (colMeta.getConstraints().contains(Constraints.CHECK) && colMeta.getCheckExpression() != null && !value.equals("NULL") && !evaluateSimpleCheck(colMeta.getCheckExpression(), colName, value)) {
+                    throw new FileStorageException(
+                            "CHECK constraint failed for column '" + colName + "'"
+                    );
+                }
+            }
+        }
+
+        if (isTransaction) {
+            transactionBuffer
+                    .computeIfAbsent(tableName, k -> new HashMap<>())
+                    .putAll(updatedColumns);
+        } else {
+            for (Map.Entry<String, Column> entry : updatedColumns.entrySet()) {
+                fileManager.saveColumnData(tableName, entry.getKey(), entry.getValue());
+            }
+        }
+
+        return matchingRows.size();
+    }
+
     private List<Integer> findMatchingRows(String tableName, String whereCol, String whereVal) throws FileStorageException {
         if (whereCol == null) {
             return null;
@@ -482,14 +492,12 @@ public class DatabaseEngine {
             switch (type) {
                 case INTEGER -> Long.parseLong(value);
                 case REAL -> Double.parseDouble(value);
-                case TEXT, BLOB, NULL -> {
-                }
             }
         } catch (NumberFormatException e) {
             throw new Exception("Type mismatch: expected " + type + ", got '" + value + "'");
         }
     }
-  
+
     private Column loadColumn(String tableName, String colName) throws FileStorageException {
         if (isTransaction && transactionBuffer.containsKey(tableName)) {
             Map<String, Column> tableBuffer = transactionBuffer.get(tableName);
@@ -530,5 +538,59 @@ public class DatabaseEngine {
         }
 
         return newColumn;
+    }
+
+    private boolean evaluateSimpleCheck(String expression, String columnName, String value) {
+        String normalized = expression.replaceAll("\\s+", "");
+        String[] operators = {">=", "<=", "!=", "<>", "=", ">", "<"};
+
+        for (String operator : operators) {
+            int idx = normalized.indexOf(operator);
+            if (idx <= 0) {
+                continue;
+            }
+
+            String left = normalized.substring(0, idx);
+            String right = normalized.substring(idx + operator.length());
+            if (!left.equals(columnName)) {
+                continue;
+            }
+
+            return compareCheckValues(value, right, operator);
+        }
+
+        return true;
+    }
+
+    private boolean compareCheckValues(String value, String rightOperand, String operator) {
+        boolean numericCompare = isNumeric(value) && isNumeric(rightOperand);
+
+        int cmp;
+        if (numericCompare) {
+            double leftNum = Double.parseDouble(value);
+            double rightNum = Double.parseDouble(rightOperand);
+            cmp = Double.compare(leftNum, rightNum);
+        } else {
+            cmp = value.compareTo(rightOperand);
+        }
+
+        return switch (operator) {
+            case "=" -> cmp == 0;
+            case "!=", "<>" -> cmp != 0;
+            case ">" -> cmp > 0;
+            case "<" -> cmp < 0;
+            case ">=" -> cmp >= 0;
+            case "<=" -> cmp <= 0;
+            default -> true;
+        };
+    }
+
+    private boolean isNumeric(String value) {
+        try {
+            Double.parseDouble(value);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 }

@@ -29,7 +29,7 @@ public class ColumnMetadata {
         this.constraints = constraints;
         this.collate = collate;
     }
-    
+
     public void incrementSize() {
         this.size++;
     }

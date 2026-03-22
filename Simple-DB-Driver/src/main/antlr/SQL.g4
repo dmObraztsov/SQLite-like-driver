@@ -45,13 +45,9 @@ insertTableStatement :
 selectStatement : SELECT selectCols FROM tablename joinClause* whereClause?;
 
 deleteStatement : DELETE FROM tablename whereClause?;
+updateStatement : UPDATE tablename SET updateAssignment (COMMA updateAssignment)* whereClause?;
 
-updateStatement : UPDATE tablename SET (column EQ literal)+;
-
-selectCols
-    : STAR
-    | columnRef (COMMA columnRef)*
-    ;
+selectCols : STAR | columnRef (COMMA columnRef)*;
 
 joinClause : JOIN tablename ON condition;
 whereClause : WHERE condition;
@@ -85,6 +81,8 @@ columnDef : identifier dataType columnConstraint*;
 column : name dataType constraint*;
 
 columnRef : identifier (DOT identifier)?;
+
+updateAssignment : columnRef EQ operand;
 
 columnConstraint
     : notNullConstraint
@@ -140,6 +138,8 @@ FROM         : [fF] [rR] [oO] [mM];
 WHERE        : [wW] [hH] [eE] [rR] [eE];
 JOIN         : [jJ] [oO] [iI] [nN];
 DELETE       : [dD] [eE] [lL] [eE] [tT] [eE];
+UPDATE : [uU] [pP] [dD] [aA] [tT] [eE];
+SET : [sS] [eE] [tT];
 ON           : [oO] [nN];
 
 CREATE      : [cC] [rR] [eE] [aA] [tT] [eE];
@@ -151,7 +151,6 @@ COLUMN      : [cC] [oO] [lL] [uU] [mM] [nN];
 RENAME      : [rR] [eE] [nN] [aA] [mM] [eE];
 TO          : [tT] [oO];
 INSERT      : [iI] [nN] [sS] [eE] [rR] [tT];
-UPDATE      : [uU] [pP] [dD] [aA] [tT] [eE];
 INTO        : [iI] [nN] [tT] [oO];
 VALUES      : [vV] [aA] [lL] [uU] [eE] [sS];
 

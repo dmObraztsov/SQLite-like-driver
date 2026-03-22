@@ -8,7 +8,9 @@ import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
@@ -37,7 +39,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         String tableName = ctx.identifier().getText();
         ArrayList<ColumnMetadata> columns = new ArrayList<>();
         for (SQLParser.ColumnDefContext columnDefContext : ctx.columnDef()) {
-            columns.add(parseColumn(columnDefContext));
+            columns.add(parseColumn2(columnDefContext));
         }
         return new Queries.CreateTableQuery(tableName, columns);
     }
@@ -135,7 +137,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         SQLParser.AlterActionContext actionCtx = ctx.alterAction();
 
         if (actionCtx.addColumn() != null) {
-            ColumnMetadata column = parseColumn(actionCtx.addColumn().column());
+            ColumnMetadata column = parseColumn1(actionCtx.addColumn().column());
             return new Queries.AlterTableAddColumnQuery(tableName, column);
 
         } else if (actionCtx.dropColumn() != null) {
@@ -188,6 +190,40 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         return new Queries.DeleteTableQuery(tableName, whereCol, whereVal);
     }
 
+    @Override
+    public QueryInterface visitUpdateStatement(SQLParser.UpdateStatementContext ctx) {
+        String tableName = ctx.tablename().getText();
+        Map<String, String> setValues = new HashMap<>();
+
+        for (SQLParser.UpdateAssignmentContext assignCtx : ctx.updateAssignment()) {
+            String colName = assignCtx.columnRef().identifier().get(0).getText();
+
+            SQLParser.OperandContext op = assignCtx.operand();
+            String value;
+            if (op.literal() != null) {
+                value = op.literal().getText();
+            } else if (op.columnRef() != null) {
+                value = op.columnRef().getText();
+            } else {
+                throw new IllegalArgumentException("Unsupported operand in UPDATE");
+            }
+
+            setValues.put(colName, value);
+        }
+
+        String whereCol = null;
+        String whereVal = null;
+        if (ctx.whereClause() != null) {
+            SimplePredicate where = extractSimpleWhere(ctx.whereClause());
+            if (where != null) {
+                whereCol = where.columnName();
+                whereVal = where.literalValue();
+            }
+        }
+
+        return new Queries.UpdateTableQuery(tableName, setValues, whereCol, whereVal);
+    }
+
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {
         Constraints constraint;
         String text = currConstraint.getText();
@@ -203,7 +239,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         return constraint;
     }
 
-    private ColumnMetadata parseColumn(SQLParser.ColumnContext columnContext) {
+    private ColumnMetadata parseColumn1(SQLParser.ColumnContext columnContext) {
         DataType dataType = switch (columnContext.dataType().getText()) {
             case "INTEGER" -> DataType.INTEGER;
             case "REAL" -> DataType.REAL;
@@ -212,10 +248,18 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             default -> null;
         };
 
-        return null;
+        ArrayList<Constraints> constraints = new ArrayList<>();
+        ColumnMetadata metadata = new ColumnMetadata(
+                columnContext.name().getText(),
+                dataType,
+                0,
+                constraints,
+                null
+        );
+        return metadata;
     }
 
-    private ColumnMetadata parseColumn(SQLParser.ColumnDefContext columnContext) {
+    private ColumnMetadata parseColumn2(SQLParser.ColumnDefContext columnContext) {
         DataType dataType = parseDataType(columnContext.dataType());
         ArrayList<Constraints> constraints = new ArrayList<>();
         String defaultValue = null;
