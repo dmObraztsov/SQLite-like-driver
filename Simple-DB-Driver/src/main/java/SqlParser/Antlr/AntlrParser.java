@@ -228,13 +228,13 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         Constraints constraint;
         String text = currConstraint.getText();
         constraint = switch (text) {
-        case "NOTNULL" -> Constraints.NOT_NULL;
-        case "PRIMARYKEY" -> Constraints.PRIMARY_KEY;
-        case "AUTOINCREMENT" -> Constraints.AUTOINCREMENT;
-        case "UNIQUE" -> Constraints.UNIQUE;
-        case "CHECK" -> Constraints.CHECK;
-        case  "DEFAULT" -> Constraints.DEFAULT;
-        default ->  null;
+            case "NOTNULL" -> Constraints.NOT_NULL;
+            case "PRIMARYKEY" -> Constraints.PRIMARY_KEY;
+            case "AUTOINCREMENT" -> Constraints.AUTOINCREMENT;
+            case "UNIQUE" -> Constraints.UNIQUE;
+            case "CHECK" -> Constraints.CHECK;
+            case "DEFAULT" -> Constraints.DEFAULT;
+            default -> null;
         };
         return constraint;
     }
@@ -373,7 +373,9 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         );
     }
 
-    private record SimplePredicate(String columnName, String literalValue) {}
+    private record SimplePredicate(String columnName, String literalValue) {
+    }
 
-    private record SimpleJoin(String rightTableName, String leftColumnName, String rightColumnName) {}
+    private record SimpleJoin(String rightTableName, String leftColumnName, String rightColumnName) {
+    }
 }

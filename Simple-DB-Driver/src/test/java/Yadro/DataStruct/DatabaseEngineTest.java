@@ -36,8 +36,16 @@ class DatabaseEngineTest {
 
     @Test
     void setCurrentDatabaseShouldDelegate() {
-        engine.setCurrentDatabase("shop");
-        verify(fileManager).useDB("shop");
+        try {
+            engine.setCurrentDatabase("shop");
+        } catch (FileStorageException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            verify(fileManager).useDB("shop");
+        } catch (FileStorageException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
@@ -196,7 +204,7 @@ class DatabaseEngineTest {
         List<Row> rows = engine.select("users", List.of("id", "name"), false, "id", "2");
 
         assertThat(rows).hasSize(1);
-        assertThat(rows.get(0).get("name")).isEqualTo("Bob");
+        assertThat(rows.getFirst().get("name")).isEqualTo("Bob");
     }
 
     @Test
@@ -229,8 +237,8 @@ class DatabaseEngineTest {
         List<Row> rows = engine.join("users", List.of("id"), "profiles", List.of("city"), "id", "userId");
 
         assertThat(rows).hasSize(1);
-        assertThat(rows.get(0).get("users.id")).isEqualTo("2");
-        assertThat(rows.get(0).get("profiles.city")).isEqualTo("Paris");
+        assertThat(rows.getFirst().get("users.id")).isEqualTo("2");
+        assertThat(rows.getFirst().get("profiles.city")).isEqualTo("Paris");
     }
 
     @Test

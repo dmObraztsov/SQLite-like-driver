@@ -13,35 +13,34 @@ public class TableMetadata {
     private int columnCount;
     private int countAutoIncrements;
     private int countDefaults;
-    private ArrayList<String> columnNames= new ArrayList<>();
+    private ArrayList<String> columnNames = new ArrayList<>();
 
-    public TableMetadata(){
+    public TableMetadata() {
     }
 
-    public TableMetadata(String name, int columnCount, int countAutoIncrements, int countDefaults)
-    {
+    public TableMetadata(String name, int columnCount, int countAutoIncrements, int countDefaults) {
         this.name = name;
         this.columnCount = columnCount;
         this.countAutoIncrements = countAutoIncrements;
         this.countDefaults = countDefaults;
     }
 
-    public void addColumnName(String name)
-    {
+    public void addColumnName(String name) {
         columnNames.add(name);
     }
-    public void deleteColumnName(String name)
-    {
+
+    public void deleteColumnName(String name) {
         columnNames.remove(name);
     }
-    public void addAutoIncrement()
-    {
+
+    public void addAutoIncrement() {
         this.countAutoIncrements++;
     }
-    public void addDefault()
-    {
+
+    public void addDefault() {
         this.countDefaults++;
     }
+
     public void setTableName(String tableName) {
 
     }

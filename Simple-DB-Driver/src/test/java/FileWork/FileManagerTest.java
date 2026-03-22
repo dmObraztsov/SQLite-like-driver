@@ -34,7 +34,11 @@ class FileManagerTest {
         when(fileStorage.exists("src/main/data/testDb")).thenReturn(true);
         FileManager manager = new FileManager(fileStorage);
 
-        manager.useDB("testDb");
+        try {
+            manager.useDB("testDb");
+        } catch (FileStorageException e) {
+            throw new RuntimeException(e);
+        }
 
         assertThat(manager.getNameDB()).isEqualTo("testDb");
     }
@@ -45,8 +49,16 @@ class FileManagerTest {
         when(fileStorage.exists("src/main/data/missing")).thenReturn(false);
         FileManager manager = new FileManager(fileStorage);
 
-        manager.useDB("db1");
-        manager.useDB("missing");
+        try {
+            manager.useDB("db1");
+        } catch (FileStorageException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            manager.useDB("missing");
+        } catch (FileStorageException e) {
+            throw new RuntimeException(e);
+        }
 
         assertThat(manager.getNameDB()).isEqualTo("db1");
     }
@@ -54,7 +66,11 @@ class FileManagerTest {
     @Test
     void useDbShouldResetDbIfBlankName() {
         FileManager manager = new FileManager(fileStorage);
-        manager.useDB("   ");
+        try {
+            manager.useDB("   ");
+        } catch (FileStorageException e) {
+            throw new RuntimeException(e);
+        }
 
         assertThat(manager.getNameDB()).isEmpty();
     }
@@ -158,7 +174,11 @@ class FileManagerTest {
         when(fileStorage.exists("src/main/data/testDb")).thenReturn(true);
         when(fileStorage.exists("src/main/data/testDb/tables/users")).thenReturn(true);
         FileManager manager = new FileManager(fileStorage);
-        manager.useDB("testDb");
+        try {
+            manager.useDB("testDb");
+        } catch (FileStorageException e) {
+            throw new RuntimeException(e);
+        }
 
         boolean exists = manager.tableExists("users");
 

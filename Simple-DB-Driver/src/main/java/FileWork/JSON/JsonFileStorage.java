@@ -74,7 +74,7 @@ public class JsonFileStorage implements FileStorage {
             throw new PermissionDeniedException("Permission denied:" + path);
         }
 
-        boolean deleted =  file.delete();
+        boolean deleted = file.delete();
         if (!deleted) {
             throw new FileStorageException("Could not delete file: " + path);
         }
@@ -85,7 +85,7 @@ public class JsonFileStorage implements FileStorage {
         File file = new File(path);
         File target = new File(newName);
 
-        if(!file.canWrite()) {
+        if (!file.canWrite()) {
             throw new PermissionDeniedException("Permission denied:" + path);
         }
 
@@ -129,7 +129,7 @@ public class JsonFileStorage implements FileStorage {
             throw new FileTypeException("Not a directory: " + path);
         }
 
-        if  (!folder.canWrite()) {
+        if (!folder.canWrite()) {
             throw new PermissionDeniedException("Cannot delete due to accession rights: " + path);
         }
 
@@ -144,7 +144,7 @@ public class JsonFileStorage implements FileStorage {
         File folder = new File(path);
         File target = new File(newPath);
 
-        if(!folder.exists()) {
+        if (!folder.exists()) {
             throw new NoFileException("File not found: " + path);
         }
 
@@ -152,7 +152,7 @@ public class JsonFileStorage implements FileStorage {
             throw new AlreadyExistsException("A file with the same name already exists: " + newPath);
         }
 
-        if(!folder.canWrite()) {
+        if (!folder.canWrite()) {
             throw new PermissionDeniedException("Permission denied:" + path);
         }
 

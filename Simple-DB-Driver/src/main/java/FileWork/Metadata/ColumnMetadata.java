@@ -20,7 +20,8 @@ public class ColumnMetadata {
     private String defaultValue;
     private String checkExpression;
 
-    public ColumnMetadata() {}
+    public ColumnMetadata() {
+    }
 
     public ColumnMetadata(String name, DataType type, int size, ArrayList<Constraints> constraints, Collate collate) {
         this.name = name;
