@@ -42,7 +42,7 @@ insertTableStatement :
     INSERT INTO identifier (LPAREN identifier (COMMA identifier)* RPAREN)?
     VALUES LPAREN literal (COMMA literal)* RPAREN;
 
-selectStatement : SELECT selectCols FROM tablename joinClause* whereClause?;
+selectStatement : SELECT DISTINCT? selectCols FROM tablename joinClause* whereClause?;
 
 deleteStatement : DELETE FROM tablename whereClause?;
 updateStatement : UPDATE tablename SET updateAssignment (COMMA updateAssignment)* whereClause?;
@@ -133,7 +133,8 @@ dataType
     | BLOB
     ;
 
-SELECT      : [sS] [eE] [lL] [eE] [cC] [tT];
+SELECT       : [sS] [eE] [lL] [eE] [cC] [tT];
+DISTINCT     : [dD] [iI] [sS] [tT] [iI] [nN] [cC] [tT];
 FROM         : [fF] [rR] [oO] [mM];
 WHERE        : [wW] [hH] [eE] [rR] [eE];
 JOIN         : [jJ] [oO] [iI] [nN];

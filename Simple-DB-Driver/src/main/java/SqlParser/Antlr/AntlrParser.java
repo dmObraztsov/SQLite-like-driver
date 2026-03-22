@@ -69,6 +69,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     @Override
     public QueryInterface visitSelectStatement(SQLParser.SelectStatementContext ctx) {
         String baseTable = ctx.tablename().getText();
+        boolean isDistinct = ctx.DISTINCT() != null;
 
         if (ctx.joinClause().isEmpty()) {
             boolean isStar = ctx.selectCols().STAR() != null;
@@ -85,7 +86,8 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                     isStar,
                     baseTable,
                     where == null ? null : where.columnName(),
-                    where == null ? null : where.literalValue()
+                    where == null ? null : where.literalValue(),
+                    isDistinct
             );
         }
 
@@ -127,7 +129,8 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                 join.rightTableName(),
                 rightColumns.isEmpty() ? null : rightColumns,
                 join.leftColumnName(),
-                join.rightColumnName()
+                join.rightColumnName(),
+                isDistinct
         );
     }
 

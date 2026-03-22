@@ -135,7 +135,7 @@ public class DatabaseEngine {
         }
     }
 
-    public List<Row> select(String tableName, List<String> columns, boolean isStar, String whereCol, String whereVal) throws Exception {
+    public List<Row> select(String tableName, List<String> columns, boolean isStar, String whereCol, String whereVal, boolean isDistinct) throws Exception {
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
         List<String> targetColumns = isStar ? tableMeta.getColumnNames() : columns;
 
@@ -166,12 +166,16 @@ public class DatabaseEngine {
             rows.add(new Row(rowValues));
         }
 
+        if (isDistinct) {
+            return new ArrayList<>(new LinkedHashSet<>(rows));
+        }
+
         return rows;
     }
 
     public List<Row> join(String table1Name, List<String> columns1, String table2Name, List<String> columns2, String leftJoinCol, String rightJoinCol) throws Exception {
-        List<Row> leftTable = select(table1Name, null, true, null, null);
-        List<Row> rightTable = select(table2Name, null, true, null, null);
+        List<Row> leftTable = select(table1Name, null, true, null, null, false);
+        List<Row> rightTable = select(table2Name, null, true, null, null, false);
 
         List<Row> joinedRows = new ArrayList<>();
 
@@ -206,9 +210,10 @@ public class DatabaseEngine {
             }
         }
 
+
+
         return joinedRows;
     }
-
 
 
     public void beginTransaction() {
