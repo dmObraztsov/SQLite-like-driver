@@ -63,19 +63,52 @@ public class Queries {
         }
     }
 
-    public record SelectDataQuery(List<String> selectCols, boolean isStar, String tableName, String whereName, String whereValue) implements QueryInterface {
+    public record SelectDataQuery(List<String> selectCols, boolean isStar, String tableName, String whereName, String whereValue, boolean isDistinct) implements QueryInterface {
+
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception {
-            List<Row> results = engine.select(tableName, selectCols, isStar, whereName, whereValue);
+            List<Row> results = engine.select(tableName, selectCols, isStar, whereName, whereValue, isDistinct);
             return new ExecutionResult(true, "Select completed.", results);
         }
     }
 
-    public record JoinTableQuery(String table1Name, List<String> columns1, String table2Name, List<String> columns2, String leftJoinCol, String rightJoinCol) implements QueryInterface {
+    public record JoinTableQuery(String table1Name, List<String> columns1, String table2Name, List<String> columns2, String leftJoinCol, String rightJoinCol, boolean isDistinct) implements QueryInterface {
+
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception {
-            List<Row> result = engine.join(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol);
-            return new ExecutionResult(true, "Join completed", result);
+            List<Row> rawJoinedRows = engine.join(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol);
+
+            List<Row> projectedRows = new ArrayList<>();
+
+            for (Row row : rawJoinedRows) {
+                Map<String, String> filteredValues = new HashMap<>();
+
+                if (columns1 != null) {
+                    for (String col : columns1) {
+                        String key = table1Name + "." + col;
+                        filteredValues.put(key, row.get(key));
+                    }
+                }
+                if (columns2 != null) {
+                    for (String col : columns2) {
+                        String key = table2Name + "." + col;
+                        filteredValues.put(key, row.get(key));
+                    }
+                }
+
+                if (columns1 == null && columns2 == null) {
+                    projectedRows.add(row);
+                } else {
+                    projectedRows.add(new Row(filteredValues));
+                }
+            }
+
+            List<Row> finalResult = projectedRows;
+            if (this.isDistinct) {
+                finalResult = new ArrayList<>(new LinkedHashSet<>(projectedRows));
+            }
+
+            return new ExecutionResult(true, "Join completed", finalResult);
         }
     }
 

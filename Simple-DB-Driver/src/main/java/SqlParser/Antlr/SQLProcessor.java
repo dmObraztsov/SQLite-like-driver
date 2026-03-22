@@ -7,8 +7,7 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 public class SQLProcessor {
-    public static QueryInterface getQuery(String sql)
-    {
+    public static QueryInterface getQuery(String sql) {
         CharStream input = CharStreams.fromString(sql);
         SQLLexer lexer = new SQLLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
@@ -16,8 +15,7 @@ public class SQLProcessor {
 
         ParseTree tree = parser.query();
 
-        if(parser.getNumberOfSyntaxErrors() > 0)
-        {
+        if (parser.getNumberOfSyntaxErrors() > 0) {
             return null;
         }
 
