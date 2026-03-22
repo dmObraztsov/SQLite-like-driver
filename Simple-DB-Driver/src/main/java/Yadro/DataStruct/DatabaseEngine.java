@@ -1,6 +1,6 @@
 package Yadro.DataStruct;
 
-import Exceptions.*;
+import Exceptions.FileTypeException;
 import Exceptions.AlreadyExistsException;
 import Exceptions.FileStorageException;
 import Exceptions.NoFileException;
@@ -60,6 +60,7 @@ public class DatabaseEngine {
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
 
         Map<String, Column> columnsToUpdate = new HashMap<>();
+        Map<String, String> finalValues = new HashMap<>();
 
         for (String colName : tableMeta.getColumnNames()) {
             ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, colName);
@@ -70,13 +71,59 @@ public class DatabaseEngine {
 
             if (colIndex != -1) {
                 valueToInsert = values.get(colIndex);
-                validateType(valueToInsert, colMeta.getType());
+            } else if (colMeta.getDefaultValue() != null) {
+                valueToInsert = colMeta.getDefaultValue();
             } else {
                 valueToInsert = "NULL";
             }
 
-            colData.addData(colData.getData().size(), valueToInsert);
+            if (colMeta.getConstraints().contains(Constraints.AUTOINCREMENT) && valueToInsert.equals("NULL")) {
+                int nextValue = colData.getData().size() + 1;
+                valueToInsert = String.valueOf(nextValue);
+            }
+
+            if (!valueToInsert.equals("NULL")) {
+                validateType(valueToInsert, colMeta.getType());
+            }
+
+            finalValues.put(colName, normalizeValue(valueToInsert));
             columnsToUpdate.put(colName, colData);
+        }
+
+        for (String colName : tableMeta.getColumnNames()) {
+            ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, colName);
+            Column colData = loadColumn(tableName, colName);
+            String value = finalValues.get(colName);
+
+            boolean isPrimaryKey = colMeta.getConstraints().contains(Constraints.PRIMARY_KEY);
+            boolean isNotNull = colMeta.getConstraints().contains(Constraints.NOT_NULL);
+            boolean isUnique = colMeta.getConstraints().contains(Constraints.UNIQUE);
+
+            if (isPrimaryKey) {
+                isNotNull = true;
+                isUnique = true;
+            }
+
+            if (isNotNull && value.equals("NULL")) {
+                throw new Exception("Column " + colName + " can not be NULL");
+            }
+
+            if (isUnique && !value.equals("NULL") && colData.getData().contains(value)) {
+                throw new Exception("Column " + colName + " is UNIQUE and it already contains " + value);
+            }
+
+            if (colMeta.getConstraints().contains(Constraints.CHECK)
+                    && colMeta.getCheckExpression() != null
+                    && !value.equals("NULL")
+                    && !evaluateSimpleCheck(colMeta.getCheckExpression(), colName, value)) {
+                throw new Exception("CHECK constraint failed for column " + colName + ": " + colMeta.getCheckExpression());
+            }
+        }
+
+        for (String colName : tableMeta.getColumnNames()) {
+            Column colData = columnsToUpdate.get(colName);
+            String value = finalValues.get(colName);
+            colData.addData(colData.getData().size(), value);
         }
 
         if (isTransaction) {
@@ -492,6 +539,8 @@ public class DatabaseEngine {
             switch (type) {
                 case INTEGER -> Long.parseLong(value);
                 case REAL -> Double.parseDouble(value);
+                case TEXT, BLOB, NULL -> {
+                }
             }
         } catch (NumberFormatException e) {
             throw new Exception("Type mismatch: expected " + type + ", got '" + value + "'");
