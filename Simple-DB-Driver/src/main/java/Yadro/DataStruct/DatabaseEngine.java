@@ -10,6 +10,7 @@ import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class DatabaseEngine {
     private final FileManager fileManager;
@@ -507,6 +508,225 @@ public class DatabaseEngine {
         return matchingRows.size();
     }
 
+    public int count(String tableName, String columnName, String whereCol, String whereVal) throws FileStorageException {
+        if (!fileManager.tableExists(tableName)) {
+            throw new NoTableException("Table not found: " + tableName);
+        }
+
+        List<String> columnNames = fileManager.loadTableMetadata(tableName).getColumnNames();
+
+        String targetColumn = columnName;
+        if (targetColumn == null || targetColumn.equals("*")) {
+            targetColumn = columnNames.get(0);
+        }
+
+        Column column = loadColumn(tableName, targetColumn);
+        List<String> data = column.getData();
+
+        if (whereCol == null) {
+            return data.size();
+        }
+
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        return matchingRows == null ? 0 : matchingRows.size();
+    }
+
+    public double sum(String tableName, String columnName, String whereCol, String whereVal) throws FileStorageException {
+        if (!fileManager.tableExists(tableName)) {
+            throw new NoTableException("Table not found: " + tableName);
+        }
+
+        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+        List<String> columnNames = tableMeta.getColumnNames();
+
+        String targetColumn = columnName;
+        if (targetColumn == null || targetColumn.equals("*")) {
+            targetColumn = columnNames.get(0);
+        }
+
+        ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, targetColumn);
+        DataType type = colMeta.getType();
+        if (type != DataType.INTEGER && type != DataType.REAL) {
+            throw new FileTypeException("Cannot SUM non-numeric column: " + targetColumn);
+        }
+
+        Column column = loadColumn(tableName, targetColumn);
+        List<String> data = column.getData();
+
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
+
+        double sum = 0;
+
+        for (int i = 0; i < data.size(); i++) {
+            if (matchingSet != null && !matchingSet.contains(i)) {
+                continue;
+            }
+
+            String value = data.get(i);
+            if (value == null || value.equals("NULL")) {
+                continue;
+            }
+
+            try {
+                if (type == DataType.INTEGER) {
+                    sum += Long.parseLong(value);
+                } else if (type == DataType.REAL) {
+                    sum += Double.parseDouble(value);
+                }
+            } catch (NumberFormatException e) {
+                throw new FileTypeException("Invalid numeric value in column '" + targetColumn + "': " + value);
+            }
+        }
+
+        return sum;
+    }
+
+    public double avg(String tableName, String columnName, String whereCol, String whereVal) throws FileStorageException {
+        if (!fileManager.tableExists(tableName)) {
+            throw new NoTableException("Table not found: " + tableName);
+        }
+
+        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+        List<String> columnNames = tableMeta.getColumnNames();
+
+        String targetColumn = columnName;
+        if (targetColumn == null || targetColumn.equals("*")) {
+            targetColumn = columnNames.get(0);
+        }
+
+        ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, targetColumn);
+        DataType type = colMeta.getType();
+        if (type != DataType.INTEGER && type != DataType.REAL) {
+            throw new FileTypeException("Cannot AVG non-numeric column: " + targetColumn);
+        }
+
+        Column column = loadColumn(tableName, targetColumn);
+        List<String> data = column.getData();
+
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
+
+        double sum = 0;
+        int count = 0;
+
+        for (int i = 0; i < data.size(); i++) {
+            if (matchingSet != null && !matchingSet.contains(i)) {
+                continue;
+            }
+
+            String value = data.get(i);
+            if (value == null || value.equals("NULL")) {
+                continue;
+            }
+
+            try {
+                if (type == DataType.INTEGER) {
+                    sum += Long.parseLong(value);
+                } else if (type == DataType.REAL) {
+                    sum += Double.parseDouble(value);
+                }
+                count++;
+            } catch (NumberFormatException e) {
+                throw new FileTypeException("Invalid numeric value in column '" + targetColumn + "': " + value);
+            }
+        }
+
+        if (count == 0) return 0;
+        return sum / count;
+    }
+
+    public String min(String tableName, String columnName, String whereCol, String whereVal) throws FileStorageException {
+        if (!fileManager.tableExists(tableName)) {
+            throw new NoTableException("Table not found: " + tableName);
+        }
+
+        ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, columnName);
+        DataType type = colMeta.getType();
+
+        Column column = loadColumn(tableName, columnName);
+        List<String> data = column.getData();
+
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
+
+        String minValue = null;
+
+        for (int i = 0; i < data.size(); i++) {
+            if (matchingSet != null && !matchingSet.contains(i)) continue;
+
+            String value = data.get(i);
+            if (value == null || value.equals("NULL")) continue;
+
+            if (minValue == null) {
+                minValue = value;
+                continue;
+            }
+
+            if (type == DataType.INTEGER) {
+                if (Long.parseLong(value) < Long.parseLong(minValue)) {
+                    minValue = value;
+                }
+            } else if (type == DataType.REAL) {
+                if (Double.parseDouble(value) < Double.parseDouble(minValue)) {
+                    minValue = value;
+                }
+            } else {
+                if (value.compareTo(minValue) < 0) {
+                    minValue = value;
+                }
+            }
+        }
+
+        return minValue;
+    }
+
+
+    public String max(String tableName, String columnName, String whereCol, String whereVal) throws FileStorageException {
+        if (!fileManager.tableExists(tableName)) {
+            throw new NoTableException("Table not found: " + tableName);
+        }
+
+        ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, columnName);
+        DataType type = colMeta.getType();
+
+        Column column = loadColumn(tableName, columnName);
+        List<String> data = column.getData();
+
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
+
+        String maxValue = null;
+
+        for (int i = 0; i < data.size(); i++) {
+            if (matchingSet != null && !matchingSet.contains(i)) continue;
+
+            String value = data.get(i);
+            if (value == null || value.equals("NULL")) continue;
+
+            if (maxValue == null) {
+                maxValue = value;
+                continue;
+            }
+
+            if (type == DataType.INTEGER) {
+                if (Long.parseLong(value) > Long.parseLong(maxValue)) {
+                    maxValue = value;
+                }
+            } else if (type == DataType.REAL) {
+                if (Double.parseDouble(value) > Double.parseDouble(maxValue)) {
+                    maxValue = value;
+                }
+            } else {
+                if (value.compareTo(maxValue) > 0) {
+                    maxValue = value;
+                }
+            }
+        }
+
+        return maxValue;
+    }
+
     private List<Integer> findMatchingRows(String tableName, String whereCol, String whereVal) throws FileStorageException {
         if (whereCol == null) {
             return null;
@@ -647,4 +867,5 @@ public class DatabaseEngine {
             return false;
         }
     }
+
 }

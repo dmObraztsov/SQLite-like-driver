@@ -71,6 +71,58 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         String baseTable = ctx.tablename().getText();
         boolean isDistinct = ctx.DISTINCT() != null;
 
+        List<SQLParser.AggregateFuncContext> aggFuncs = ctx.selectCols().aggregateFunc();
+
+        if (aggFuncs != null && !aggFuncs.isEmpty()) {
+            if (aggFuncs.size() > 1) {
+                throw new IllegalArgumentException("Only one aggregate function is supported at a time");
+            }
+
+            SQLParser.AggregateFuncContext aggCtx = aggFuncs.get(0);
+
+            String funcName = aggCtx.funcName().getText().toUpperCase();
+            String colName = null;
+            if (aggCtx.columnRef() != null) {
+                colName = toUnqualifiedColumnName(aggCtx.columnRef());
+            }
+
+            SimplePredicate where = extractSimpleWhere(ctx.whereClause());
+
+            return switch (funcName) {
+                case "COUNT" -> new Queries.CountQuery(
+                        baseTable,
+                        colName,
+                        where == null ? null : where.columnName(),
+                        where == null ? null : where.literalValue()
+                );
+                case "SUM" -> new Queries.SumQuery(
+                        baseTable,
+                        colName,
+                        where == null ? null : where.columnName(),
+                        where == null ? null : where.literalValue()
+                );
+                case "AVG" -> new Queries.AvgQuery(
+                        baseTable,
+                        colName,
+                        where == null ? null : where.columnName(),
+                        where == null ? null : where.literalValue()
+                );
+                case "MIN" -> new Queries.MinQuery(
+                        baseTable,
+                        colName,
+                        where == null ? null : where.columnName(),
+                        where == null ? null : where.literalValue()
+                );
+                case "MAX" -> new Queries.MaxQuery(
+                        baseTable,
+                        colName,
+                        where == null ? null : where.columnName(),
+                        where == null ? null : where.literalValue()
+                );
+                default -> throw new IllegalArgumentException("Unsupported aggregate function: " + funcName);
+            };
+        }
+
         if (ctx.joinClause().isEmpty()) {
             boolean isStar = ctx.selectCols().STAR() != null;
             List<String> columns = null;
@@ -133,6 +185,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                 isDistinct
         );
     }
+
 
     @Override
     public QueryInterface visitAlterTableStatement(SQLParser.AlterTableStatementContext ctx) {

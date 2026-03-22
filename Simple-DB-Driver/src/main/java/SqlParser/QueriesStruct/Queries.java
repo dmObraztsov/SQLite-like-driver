@@ -186,4 +186,44 @@ public class Queries {
         }
     }
 
+    public record CountQuery(String tableName, String columnName, String whereCol, String whereValue) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
+            int count = engine.count(tableName, columnName, whereCol, whereValue);
+            return new ExecutionResult(true, "Count result: " + count, List.of(new Row(Map.of("COUNT", String.valueOf(count)))));
+        }
+    }
+
+    public record SumQuery(String tableName, String columnName, String whereCol, String whereValue) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
+            double sum = engine.sum(tableName, columnName, whereCol, whereValue);
+            return new ExecutionResult(true, "Sum result: " + sum, List.of(new Row(Map.of("SUM", String.valueOf(sum)))));
+        }
+    }
+
+    public record AvgQuery(String tableName, String columnName, String whereCol, String whereValue) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
+            double avg = engine.avg(tableName, columnName, whereCol, whereValue);
+            return new ExecutionResult(true, "Avg result: " + avg, List.of(new Row(Map.of("AVG", String.valueOf(avg)))));
+        }
+    }
+
+    public record MinQuery(String tableName, String columnName, String whereCol, String whereValue) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
+            String min = engine.min(tableName, columnName, whereCol, whereValue);
+            return new ExecutionResult(true, "Min result: " + min, List.of(new Row(Map.of("MIN", min))));
+        }
+    }
+
+    public record MaxQuery(String tableName, String columnName, String whereCol, String whereValue) implements QueryInterface {
+        @Override
+        public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
+            String max = engine.max(tableName, columnName, whereCol, whereValue);
+            return new ExecutionResult(true, "Max result: " + max, List.of(new Row(Map.of("MAX", max))));
+        }
+    }
+
 }
