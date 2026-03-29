@@ -2,6 +2,16 @@ package FileWork;
 
 public class PathManager {
     static private String basePath = "src/main/data";
+    public static String getWalDir(String dbName) {
+        return getDatabasePath(dbName) + "/wal";
+    }
+    public static String getWalTmpPath(String dbName, String txId) {
+        return getWalDir(dbName) + "/" + txId + ".wal.tmp";
+    }
+
+    public static String getWalPath(String dbName, String txId) {
+        return getWalDir(dbName) + "/" + txId + ".wal";
+    }
 
     public static void setBasePath(String newPath) {
         if (newPath.endsWith("/") || newPath.endsWith("\\")) {

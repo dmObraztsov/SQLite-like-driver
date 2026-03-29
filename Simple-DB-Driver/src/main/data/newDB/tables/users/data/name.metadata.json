@@ -1,5 +1,6 @@
 {
   "name" : "name",
   "type" : "TEXT",
-  "size" : 0
+  "size" : 0,
+  "constraints" : [ "UNIQUE" ]
 }

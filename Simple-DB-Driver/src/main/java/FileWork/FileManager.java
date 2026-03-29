@@ -5,10 +5,14 @@ import Exceptions.FileStorageException;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.DatabaseMetadata;
 import FileWork.Metadata.TableMetadata;
+import FileWork.WAL.WalEntry;
 import Yadro.DataStruct.Column;
 import lombok.Getter;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class FileManager {
     private final FileStorage fileStorage;
@@ -29,6 +33,7 @@ public class FileManager {
         DatabaseMetadata metadata = new DatabaseMetadata(name, "1.0.0", "UTF-16", "Default", current, current);
 
         fileStorage.createDirectory(PathManager.getDatabasePath(name));
+        fileStorage.createDirectory(PathManager.getWalDir(name));
         fileStorage.writeFile(PathManager.getDatabaseMetadataPath(name), metadata);
     }
 
@@ -91,8 +96,12 @@ public class FileManager {
     }
 
     public void renameColumnFiles(String tableName, String oldName, String newName) throws FileStorageException {
-        fileStorage.renameFile(PathManager.getColumnPath(nameDB, tableName, oldName), PathManager.getColumnPath(nameDB, tableName, newName));
-        fileStorage.renameFile(PathManager.getColumnMetadataPath(nameDB, tableName, oldName), PathManager.getColumnMetadataPath(nameDB, tableName, newName));
+        fileStorage.renameFile(
+                PathManager.getColumnPath(nameDB, tableName, oldName),
+                PathManager.getColumnPath(nameDB, tableName, newName));
+        fileStorage.renameFile(
+                PathManager.getColumnMetadataPath(nameDB, tableName, oldName),
+                PathManager.getColumnMetadataPath(nameDB, tableName, newName));
     }
 
     public boolean tableExists(String tableName) {
@@ -104,6 +113,77 @@ public class FileManager {
     }
 
     public void renameDirectory(String oldName, String newName) throws FileStorageException {
-        fileStorage.renameDirectory(PathManager.getTablePath(this.getNameDB(), oldName), PathManager.getTablePath(this.getNameDB(), newName));
+        fileStorage.renameDirectory(
+                PathManager.getTablePath(this.getNameDB(), oldName),
+                PathManager.getTablePath(this.getNameDB(), newName));
+    }
+
+    public void ensureWalDirExists() throws FileStorageException {
+        String walDir = PathManager.getWalDir(nameDB);
+        if (!fileStorage.exists(walDir)) {
+            fileStorage.createDirectory(walDir);
+        }
+    }
+
+    public void writeWalAtomic(String txId, WalEntry entry) throws FileStorageException {
+        String tmpPath   = PathManager.getWalTmpPath(nameDB, txId);
+        String finalPath = PathManager.getWalPath(nameDB, txId);
+
+        fileStorage.writeFile(tmpPath, entry);
+        fileStorage.renameFile(tmpPath, finalPath);
+    }
+
+    public WalEntry loadWal(String txId) throws FileStorageException {
+        return fileStorage.readFile(PathManager.getWalPath(nameDB, txId), WalEntry.class);
+    }
+
+    public void deleteWal(String txId) throws FileStorageException {
+        String path = PathManager.getWalPath(nameDB, txId);
+        if (fileStorage.exists(path)) {
+            fileStorage.deleteFile(path);
+        }
+    }
+
+    public void deleteWalTmp(String txId) throws FileStorageException {
+        String path = PathManager.getWalTmpPath(nameDB, txId);
+        if (fileStorage.exists(path)) {
+            fileStorage.deleteFile(path);
+        }
+    }
+
+    public List<String> listPendingWalIds() {
+        String walDir = PathManager.getWalDir(nameDB);
+        File dir = new File(walDir);
+        List<String> ids = new ArrayList<>();
+        if (!dir.exists() || !dir.isDirectory()) return ids;
+
+        File[] files = dir.listFiles();
+        if (files == null) return ids;
+
+        for (File f : files) {
+            String name = f.getName();
+            if (name.endsWith(".wal")) {
+                ids.add(name.substring(0, name.length() - 4));
+            }
+        }
+        return ids;
+    }
+
+    public List<String> listWalTmpIds() {
+        String walDir = PathManager.getWalDir(nameDB);
+        File dir = new File(walDir);
+        List<String> ids = new ArrayList<>();
+        if (!dir.exists() || !dir.isDirectory()) return ids;
+
+        File[] files = dir.listFiles();
+        if (files == null) return ids;
+
+        for (File f : files) {
+            String name = f.getName();
+            if (name.endsWith(".wal.tmp")) {
+                ids.add(name.substring(0, name.length() - 8));
+            }
+        }
+        return ids;
     }
 }
