@@ -144,6 +144,9 @@ public class DatabaseEngine {
         } else {
             for (Map.Entry<String, Column> entry : columnsToUpdate.entrySet()) {
                 fileManager.saveColumnData(tableName, entry.getKey(), entry.getValue());
+                ColumnMetadata meta = fileManager.loadColumnMetadata(tableName, entry.getKey());
+                meta.setSize(entry.getValue().getData().size());
+                fileManager.saveColumnMetadata(tableName, entry.getKey(), meta);
             }
         }
     }
@@ -372,6 +375,9 @@ public class DatabaseEngine {
                 for (Map.Entry<String, Column> colEntry : tableEntry.getValue().entrySet()) {
                     ArrayList<String> dataCopy = new ArrayList<>(colEntry.getValue().getData());
                     fileManager.saveColumnData(tableName, colEntry.getKey(), new Column(dataCopy));
+                    ColumnMetadata meta = fileManager.loadColumnMetadata(tableName, colEntry.getKey());
+                    meta.setSize(dataCopy.size());
+                    fileManager.saveColumnMetadata(tableName, colEntry.getKey(), meta);
                 }
             }
 
