@@ -69,6 +69,7 @@ public class FileManager {
     public void createTableStructure(String tableName) throws FileStorageException {
         fileStorage.createDirectory(PathManager.getTablePath(nameDB, tableName));
         fileStorage.createDirectory(PathManager.getTableDataPath(nameDB, tableName));
+        fileStorage.createDirectory(PathManager.getIndexDir(nameDB, tableName));
     }
 
     public void dropTableStructure(String tableName) throws FileStorageException {
