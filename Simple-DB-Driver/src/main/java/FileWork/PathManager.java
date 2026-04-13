@@ -2,16 +2,6 @@ package FileWork;
 
 public class PathManager {
     static private String basePath = "src/main/data";
-    public static String getWalDir(String dbName) {
-        return getDatabasePath(dbName) + "/wal";
-    }
-    public static String getWalTmpPath(String dbName, String txId) {
-        return getWalDir(dbName) + "/" + txId + ".wal.tmp";
-    }
-
-    public static String getWalPath(String dbName, String txId) {
-        return getWalDir(dbName) + "/" + txId + ".wal";
-    }
 
     public static void setBasePath(String newPath) {
         if (newPath.endsWith("/") || newPath.endsWith("\\")) {
@@ -51,5 +41,25 @@ public class PathManager {
 
     public static String getColumnMetadataPath(String dataBaseName, String tableName, String columnName) {
         return getTableDataPath(dataBaseName, tableName) + columnName + ".metadata.json";
+    }
+
+    public static String getWalDir(String dbName) {
+        return getDatabasePath(dbName) + "/wal";
+    }
+
+    public static String getWalTmpPath(String dbName, String txId) {
+        return getWalDir(dbName) + "/" + txId + ".wal.tmp";
+    }
+
+    public static String getWalPath(String dbName, String txId) {
+        return getWalDir(dbName) + "/" + txId + ".wal";
+    }
+
+    public static String getIndexDir(String dbName, String tableName) {
+        return getTablePath(dbName, tableName) + "/index";
+    }
+
+    public static String getIndexPath(String dbName, String tableName, String columnName) {
+        return getIndexDir(dbName, tableName) + "/" + columnName + ".index.json";
     }
 }

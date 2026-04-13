@@ -2,6 +2,7 @@ package FileWork;
 
 import Exceptions.EmptyFileException;
 import Exceptions.FileStorageException;
+import FileWork.Index.ColumnIndex;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.DatabaseMetadata;
 import FileWork.Metadata.TableMetadata;
@@ -68,6 +69,7 @@ public class FileManager {
     public void createTableStructure(String tableName) throws FileStorageException {
         fileStorage.createDirectory(PathManager.getTablePath(nameDB, tableName));
         fileStorage.createDirectory(PathManager.getTableDataPath(nameDB, tableName));
+        fileStorage.createDirectory(PathManager.getIndexDir(nameDB, tableName));
     }
 
     public void dropTableStructure(String tableName) throws FileStorageException {
@@ -185,5 +187,30 @@ public class FileManager {
             }
         }
         return ids;
+    }
+
+    public boolean indexExists(String tableName, String columnName) {
+        return fileStorage.exists(PathManager.getIndexPath(nameDB, tableName, columnName));
+    }
+
+    public ColumnIndex loadIndex(String tableName, String columnName) throws FileStorageException {
+        return fileStorage.readFile(
+                PathManager.getIndexPath(nameDB, tableName, columnName),
+                ColumnIndex.class);
+    }
+
+    public void saveIndex(String tableName, String columnName, ColumnIndex index) throws FileStorageException {
+        String indexDir = PathManager.getIndexDir(nameDB, tableName);
+        if (!fileStorage.exists(indexDir)) {
+            fileStorage.createDirectory(indexDir);
+        }
+        fileStorage.writeFile(PathManager.getIndexPath(nameDB, tableName, columnName), index);
+    }
+
+    public void deleteIndex(String tableName, String columnName) throws FileStorageException {
+        String path = PathManager.getIndexPath(nameDB, tableName, columnName);
+        if (fileStorage.exists(path)) {
+            fileStorage.deleteFile(path);
+        }
     }
 }
