@@ -6,6 +6,7 @@ import Exceptions.FileStorageException;
 import Exceptions.NoFileException;
 import Exceptions.NoTableException;
 import FileWork.FileManager;
+import FileWork.Index.ColumnIndex;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
 import FileWork.WAL.WalEntry;
@@ -47,6 +48,11 @@ public class DatabaseEngine {
             tableMeta.addColumnName(colMeta.getName());
             fileManager.saveColumnMetadata(tableName, colMeta.getName(), colMeta);
             fileManager.saveColumnData(tableName, colMeta.getName(), new Column());
+
+            if (colMeta.getConstraints().contains(Constraints.PRIMARY_KEY)
+                    || colMeta.getConstraints().contains(Constraints.UNIQUE)) {
+                createEmptyIndex(tableName, colMeta.getName());
+            }
         }
 
         fileManager.saveTableMetadata(tableName, tableMeta);
@@ -148,6 +154,7 @@ public class DatabaseEngine {
                 meta.setSize(entry.getValue().getData().size());
                 fileManager.saveColumnMetadata(tableName, entry.getKey(), meta);
             }
+            updateIndexesAfterInsert(tableName, finalValues, newRowIndex);
         }
     }
 
@@ -248,6 +255,8 @@ public class DatabaseEngine {
             for (Map.Entry<String, Column> entry : updatedColumns.entrySet()) {
                 fileManager.saveColumnData(tableName, entry.getKey(), entry.getValue());
             }
+
+            rebuildIndexesForTable(tableName);
         }
 
         return matchingRows.size();
@@ -333,6 +342,8 @@ public class DatabaseEngine {
             for (Map.Entry<String, Column> entry : updatedColumns.entrySet()) {
                 fileManager.saveColumnData(tableName, entry.getKey(), entry.getValue());
             }
+
+            rebuildIndexesForTable(tableName);
         }
 
         return matchingRows.size();
@@ -379,6 +390,8 @@ public class DatabaseEngine {
                     meta.setSize(dataCopy.size());
                     fileManager.saveColumnMetadata(tableName, colEntry.getKey(), meta);
                 }
+
+                rebuildIndexesForTable(tableName);
             }
 
             fileManager.deleteWal(currentTxId);
@@ -419,10 +432,19 @@ public class DatabaseEngine {
             try {
                 WalEntry wal = fileManager.loadWal(txId);
                 System.out.println("[WAL] Recovering transaction: " + txId);
+
+                Set<String> affectedTables = new HashSet<>();
+
                 for (WalEntry.WalColumnEntry entry : wal.getColumns()) {
                     Column original = new Column(new ArrayList<>(entry.getOriginalData()));
                     fileManager.saveColumnData(entry.getTableName(), entry.getColumnName(), original);
+                    affectedTables.add(entry.getTableName());
                 }
+
+                for (String tableName : affectedTables) {
+                    rebuildIndexesForTable(tableName);
+                }
+
                 fileManager.deleteWal(txId);
                 System.out.println("[WAL] Recovery complete for transaction: " + txId);
             } catch (FileStorageException e) {
@@ -442,6 +464,11 @@ public class DatabaseEngine {
         Column newColumnData = createNewColumnWithNulls(tableName);
         fileManager.saveColumnData(tableName, column.getName(), newColumnData);
         fileManager.saveColumnMetadata(tableName, column.getName(), column);
+
+        if (column.getConstraints().contains(Constraints.PRIMARY_KEY)
+                || column.getConstraints().contains(Constraints.UNIQUE)) {
+            rebuildIndexForColumn(tableName, column.getName());
+        }
     }
 
     public void alterTableDropColumn(String tableName, String columnName) throws FileStorageException {
@@ -454,6 +481,10 @@ public class DatabaseEngine {
         tableMeta.setColumnCount(tableMeta.getColumnCount() - 1);
         fileManager.saveTableMetadata(tableName, tableMeta);
         fileManager.deleteColumnFiles(tableName, columnName);
+
+        if (fileManager.indexExists(tableName, columnName)) {
+            fileManager.deleteIndex(tableName, columnName);
+        }
     }
 
     public void alterTableRenameColumn(String tableName, String columnName, String newName) throws FileStorageException {
@@ -471,6 +502,13 @@ public class DatabaseEngine {
         columnMeta.setName(newName);
         fileManager.renameColumnFiles(tableName, columnName, newName);
         fileManager.saveColumnMetadata(tableName, newName, columnMeta);
+
+        if (fileManager.indexExists(tableName, columnName)) {
+            ColumnIndex idx = fileManager.loadIndex(tableName, columnName);
+            idx.setColumnName(newName);
+            fileManager.saveIndex(tableName, newName, idx);
+            fileManager.deleteIndex(tableName, columnName);
+        }
     }
 
     public void alterTableRenameTable(String tableName, String newName) throws FileStorageException {
@@ -604,6 +642,11 @@ public class DatabaseEngine {
 
         String normalizedVal = normalizeValue(whereVal);
 
+        if (!isTransaction && fileManager.indexExists(tableName, whereCol)) {
+            ColumnIndex idx = fileManager.loadIndex(tableName, whereCol);
+            return new ArrayList<>(idx.lookup(normalizedVal));
+        }
+
         Column column = loadColumn(tableName, whereCol);
         List<String> data = column.getData();
         List<Integer> result = new ArrayList<>();
@@ -692,5 +735,64 @@ public class DatabaseEngine {
     private boolean isNumeric(String value) {
         try { Double.parseDouble(value); return true; }
         catch (NumberFormatException e) { return false; }
+    }
+
+    private void createEmptyIndex(String tableName, String columnName) throws FileStorageException {
+        ColumnIndex index = new ColumnIndex();
+        index.setColumnName(columnName);
+        index.setIndex(new HashMap<>());
+        fileManager.saveIndex(tableName, columnName, index);
+    }
+
+    private void rebuildIndexForColumn(String tableName, String columnName) throws FileStorageException {
+        Column column = fileManager.loadColumnData(tableName, columnName);
+        ColumnIndex index = new ColumnIndex();
+        index.setColumnName(columnName);
+        index.setIndex(new HashMap<>());
+
+        List<String> data = column.getData();
+        for (int i = 0; i < data.size(); i++) {
+            String value = data.get(i);
+            if (value != null && !value.equals("NULL")) {
+                index.addEntry(value, i);
+            }
+        }
+
+        fileManager.saveIndex(tableName, columnName, index);
+    }
+
+    private void rebuildIndexesForTable(String tableName) throws FileStorageException {
+        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+
+        for (String colName : tableMeta.getColumnNames()) {
+            ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, colName);
+
+            boolean indexed =
+                    colMeta.getConstraints().contains(Constraints.PRIMARY_KEY)
+                            || colMeta.getConstraints().contains(Constraints.UNIQUE);
+
+            if (indexed) {
+                rebuildIndexForColumn(tableName, colName);
+            } else if (fileManager.indexExists(tableName, colName)) {
+                fileManager.deleteIndex(tableName, colName);
+            }
+        }
+    }
+
+    private void updateIndexesAfterInsert(String tableName,
+                                          Map<String, String> insertedValues,
+                                          int rowIndex) throws FileStorageException {
+        for (Map.Entry<String, String> entry : insertedValues.entrySet()) {
+            String colName = entry.getKey();
+            String value = entry.getValue();
+
+            if (!fileManager.indexExists(tableName, colName)) {
+                continue;
+            }
+
+            ColumnIndex index = fileManager.loadIndex(tableName, colName);
+            index.addEntry(value, rowIndex);
+            fileManager.saveIndex(tableName, colName, index);
+        }
     }
 }
