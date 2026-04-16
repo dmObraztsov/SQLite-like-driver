@@ -20,7 +20,7 @@ public class PathManager {
     }
 
     public static String getDatabaseMetadataPath(String dataBaseName) {
-        return getDatabasePath(dataBaseName) + '/' + "metadata.json";
+        return getDatabasePath(dataBaseName) + '/' + "metadata.bin";
     }
 
     public static String getTablePath(String dataBasename, String tableName) {
@@ -28,7 +28,7 @@ public class PathManager {
     }
 
     public static String getTableMetadataPath(String dataBaseName, String tableName) {
-        return getTablePath(dataBaseName, tableName) + '/' + "metadata.json";
+        return getTablePath(dataBaseName, tableName) + '/' + "metadata.bin";
     }
 
     public static String getTableDataPath(String dataBaseName, String tableName) {
@@ -36,11 +36,11 @@ public class PathManager {
     }
 
     public static String getColumnPath(String dataBaseName, String tableName, String columnName) {
-        return getTableDataPath(dataBaseName, tableName) + columnName + ".json";
+        return getTableDataPath(dataBaseName, tableName) + columnName + ".bin";
     }
 
     public static String getColumnMetadataPath(String dataBaseName, String tableName, String columnName) {
-        return getTableDataPath(dataBaseName, tableName) + columnName + ".metadata.json";
+        return getTableDataPath(dataBaseName, tableName) + columnName + ".metadata.bin";
     }
 
     public static String getWalDir(String dbName) {
@@ -60,6 +60,6 @@ public class PathManager {
     }
 
     public static String getIndexPath(String dbName, String tableName, String columnName) {
-        return getIndexDir(dbName, tableName) + "/" + columnName + ".index.json";
+        return getIndexDir(dbName, tableName) + "/" + columnName + ".index.bin";
     }
 }

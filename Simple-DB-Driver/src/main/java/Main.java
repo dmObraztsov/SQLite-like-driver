@@ -1,5 +1,6 @@
 import FileWork.FileManager;
 import FileWork.JSON.JsonFileStorage;
+import FileWork.Binary.BinaryFileStorage;
 import SqlParser.QueriesStruct.ExecutionResult;
 import SqlParser.QueriesStruct.QueryInterface;
 import SqlParser.Antlr.SQLProcessor;
@@ -13,7 +14,7 @@ public class Main {
     public static void main(String[] args) {
         Scanner in = new Scanner(System.in);
 
-        JsonFileStorage storage = new JsonFileStorage();
+        BinaryFileStorage storage = new BinaryFileStorage();
         FileManager fileManager = new FileManager(storage);
 
         DatabaseEngine engine = new DatabaseEngine(fileManager);
