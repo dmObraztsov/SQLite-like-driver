@@ -7,11 +7,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
 @Setter
 @Getter
-public class ColumnMetadata {
+public class ColumnMetadata implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private String name;
     private DataType type;
     private int size;

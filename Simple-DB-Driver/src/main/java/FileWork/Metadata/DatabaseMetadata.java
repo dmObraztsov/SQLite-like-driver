@@ -4,20 +4,19 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.util.Date;
 
 @Setter
 @Getter
-public class DatabaseMetadata {
+public class DatabaseMetadata implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private String name;
     private String version;
     private String encoding;
     private String collation;
-
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private Date createdDate;
-
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
     private Date lastModified;
 
     //TODO private long totalSize;

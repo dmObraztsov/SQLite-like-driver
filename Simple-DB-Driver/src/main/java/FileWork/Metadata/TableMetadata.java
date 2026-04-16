@@ -3,12 +3,15 @@ package FileWork.Metadata;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 
 @Setter
 @Getter
-public class TableMetadata {
+public class TableMetadata implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private String name;
     private int columnCount;
     private int countAutoIncrements;
