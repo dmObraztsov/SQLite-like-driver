@@ -10,7 +10,7 @@ class PathManagerTest {
     @Test
     void shouldBuildDatabaseAndMetadataPaths() {
         assertThat(PathManager.getDatabasePath("shop")).isEqualTo("src/main/data/shop");
-        assertThat(PathManager.getDatabaseMetadataPath("shop")).isEqualTo("src/main/data/shop/metadata.json");
+        assertThat(PathManager.getDatabaseMetadataPath("shop")).isEqualTo("src/main/data/shop/metadata.bin");
     }
 
     @Test
@@ -18,11 +18,11 @@ class PathManagerTest {
         assertThat(PathManager.getTablePath("shop", "users"))
                 .isEqualTo("src/main/data/shop/tables/users");
         assertThat(PathManager.getTableMetadataPath("shop", "users"))
-                .isEqualTo("src/main/data/shop/tables/users/metadata.json");
+                .isEqualTo("src/main/data/shop/tables/users/metadata.bin");
         assertThat(PathManager.getColumnPath("shop", "users", "id"))
-                .isEqualTo("src/main/data/shop/tables/users/data/id.json");
+                .isEqualTo("src/main/data/shop/tables/users/data/id.bin");
         assertThat(PathManager.getColumnMetadataPath("shop", "users", "id"))
-                .isEqualTo("src/main/data/shop/tables/users/data/id.metadata.json");
+                .isEqualTo("src/main/data/shop/tables/users/data/id.metadata.bin");
     }
 
     @Test

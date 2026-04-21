@@ -227,7 +227,7 @@ public class DatabaseEngine {
 
         List<Integer> matchingRows;
         if (whereCol == null) {
-            int rowCount = loadColumn(tableName, columnNames.getFirst()).getData().size();
+            int rowCount = loadColumn(tableName, columnNames.get(0)).getData().size();
             matchingRows = new ArrayList<>();
             for (int i = 0; i < rowCount; i++) matchingRows.add(i);
         } else {
@@ -273,7 +273,7 @@ public class DatabaseEngine {
 
         List<Integer> matchingRows;
         if (whereCol == null) {
-            int rowCount = loadColumn(tableName, columnNames.getFirst()).getData().size();
+            int rowCount = loadColumn(tableName, columnNames.get(0)).getData().size();
             matchingRows = new ArrayList<>();
             for (int i = 0; i < rowCount; i++) matchingRows.add(i);
         } else {
@@ -525,7 +525,7 @@ public class DatabaseEngine {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table not found: " + tableName);
 
         List<String> columnNames = fileManager.loadTableMetadata(tableName).getColumnNames();
-        String targetColumn = (columnName == null || columnName.equals("*")) ? columnNames.getFirst() : columnName;
+        String targetColumn = (columnName == null || columnName.equals("*")) ? columnNames.get(0) : columnName;
 
         Column column = loadColumn(tableName, targetColumn);
         if (whereCol == null) return column.getData().size();
@@ -538,7 +538,7 @@ public class DatabaseEngine {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table not found: " + tableName);
 
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
-        String targetColumn = (columnName == null || columnName.equals("*")) ? tableMeta.getColumnNames().getFirst() : columnName;
+        String targetColumn = (columnName == null || columnName.equals("*")) ? tableMeta.getColumnNames().get(0) : columnName;
 
         ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, targetColumn);
         DataType type = colMeta.getType();
@@ -568,7 +568,7 @@ public class DatabaseEngine {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table not found: " + tableName);
 
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
-        String targetColumn = (columnName == null || columnName.equals("*")) ? tableMeta.getColumnNames().getFirst() : columnName;
+        String targetColumn = (columnName == null || columnName.equals("*")) ? tableMeta.getColumnNames().get(0) : columnName;
 
         ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, targetColumn);
         DataType type = colMeta.getType();
@@ -675,7 +675,7 @@ public class DatabaseEngine {
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
         int rowCount = 0;
         if (!tableMeta.getColumnNames().isEmpty()) {
-            rowCount = loadColumn(tableName, tableMeta.getColumnNames().getFirst()).getData().size();
+            rowCount = loadColumn(tableName, tableMeta.getColumnNames().get(0)).getData().size();
         }
         Column newColumn = new Column();
         for (int i = 0; i < rowCount; i++) newColumn.addData(i, "NULL");

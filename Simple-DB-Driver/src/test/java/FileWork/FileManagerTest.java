@@ -84,7 +84,7 @@ class FileManagerTest {
         manager.createDB("testDb");
 
         verify(fileStorage).createDirectory("src/main/data/testDb");
-        verify(fileStorage).writeFile(eq("src/main/data/testDb/metadata.json"), any());
+        verify(fileStorage).writeFile(eq("src/main/data/testDb/metadata.bin"), any());
     }
 
     @Test
@@ -122,10 +122,10 @@ class FileManagerTest {
 
         TableMetadata metadata = new TableMetadata();
         manager.saveTableMetadata("users", metadata);
-        verify(fileStorage).writeFile("src/main/data/testDb/tables/users/metadata.json", metadata);
+        verify(fileStorage).writeFile("src/main/data/testDb/tables/users/metadata.bin", metadata);
 
         manager.loadTableMetadata("users");
-        verify(fileStorage).readFile("src/main/data/testDb/tables/users/metadata.json", TableMetadata.class);
+        verify(fileStorage).readFile("src/main/data/testDb/tables/users/metadata.bin", TableMetadata.class);
     }
 
     @Test
@@ -160,10 +160,10 @@ class FileManagerTest {
         manager.loadColumnData("users", "id");
         manager.loadColumnMetadata("users", "id");
 
-        verify(fileStorage).writeFile("src/main/data/testDb/tables/users/data/id.json", column);
-        verify(fileStorage).writeFile("src/main/data/testDb/tables/users/data/id.metadata.json", metadata);
-        verify(fileStorage).readFile("src/main/data/testDb/tables/users/data/id.json", Column.class);
-        verify(fileStorage).readFile("src/main/data/testDb/tables/users/data/id.metadata.json", ColumnMetadata.class);
+        verify(fileStorage).writeFile("src/main/data/testDb/tables/users/data/id.bin", column);
+        verify(fileStorage).writeFile("src/main/data/testDb/tables/users/data/id.metadata.bin", metadata);
+        verify(fileStorage).readFile("src/main/data/testDb/tables/users/data/id.bin", Column.class);
+        verify(fileStorage).readFile("src/main/data/testDb/tables/users/data/id.metadata.bin", ColumnMetadata.class);
     }
 
     @Test
@@ -175,8 +175,8 @@ class FileManagerTest {
 
         manager.deleteColumnFiles("users", "id");
 
-        verify(fileStorage).deleteFile("src/main/data/testDb/tables/users/data/id.json");
-        verify(fileStorage).deleteFile("src/main/data/testDb/tables/users/data/id.metadata.json");
+        verify(fileStorage).deleteFile("src/main/data/testDb/tables/users/data/id.bin");
+        verify(fileStorage).deleteFile("src/main/data/testDb/tables/users/data/id.metadata.bin");
     }
 
     @Test
@@ -200,10 +200,10 @@ class FileManagerTest {
     void renameOperationsShouldDelegateToStorage() throws FileStorageException {
         FileManager manager = new FileManager(fileStorage);
 
-        manager.renameFile("a.json", "b.json");
+        manager.renameFile("a.bin", "b.bin");
         manager.renameDirectory("db1", "db2");
 
-        verify(fileStorage).renameFile("a.json", "b.json");
+        verify(fileStorage).renameFile("a.bin", "b.bin");
         verify(fileStorage).renameDirectory(anyString(), anyString());
     }
 
