@@ -43,6 +43,10 @@ public class PathManager {
         return getTableDataPath(dataBaseName, tableName) + columnName + ".metadata.bin";
     }
 
+    public static String getTableBinaryFilePath(String dataBaseName, String tableName) {
+        return getTablePath(dataBaseName, tableName) + "/table_data.bin";
+    }
+
     public static String getWalDir(String dbName) {
         return getDatabasePath(dbName) + "/wal";
     }

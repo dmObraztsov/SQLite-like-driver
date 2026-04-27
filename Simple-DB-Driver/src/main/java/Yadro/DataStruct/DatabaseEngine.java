@@ -5,19 +5,25 @@ import Exceptions.AlreadyExistsException;
 import Exceptions.FileStorageException;
 import Exceptions.NoFileException;
 import Exceptions.NoTableException;
+import FileWork.Binary.RandomAccessBinaryStorage;
 import FileWork.FileManager;
 import FileWork.Index.ColumnIndex;
 import FileWork.Metadata.ColumnMetadata;
 import FileWork.Metadata.TableMetadata;
+import FileWork.PathManager;
 import FileWork.WAL.WalEntry;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class DatabaseEngine {
     private final FileManager fileManager;
     private boolean isTransaction;
     private final Map<String, Map<String, Column>> transactionBuffer;
     private String currentTxId;
+    private final RandomAccessBinaryStorage binaryStorage = new RandomAccessBinaryStorage();
 
     public DatabaseEngine(FileManager fileManager) {
         this.fileManager = fileManager;
@@ -116,10 +122,13 @@ public class DatabaseEngine {
             String value = finalValues.get(colName);
 
             boolean isPrimaryKey = colMeta.getConstraints().contains(Constraints.PRIMARY_KEY);
-            boolean isNotNull    = colMeta.getConstraints().contains(Constraints.NOT_NULL);
-            boolean isUnique     = colMeta.getConstraints().contains(Constraints.UNIQUE);
+            boolean isNotNull = colMeta.getConstraints().contains(Constraints.NOT_NULL);
+            boolean isUnique = colMeta.getConstraints().contains(Constraints.UNIQUE);
 
-            if (isPrimaryKey) { isNotNull = true; isUnique = true; }
+            if (isPrimaryKey) {
+                isNotNull = true;
+                isUnique = true;
+            }
 
             if (isNotNull && value.equals("NULL")) {
                 throw new Exception("Column " + colName + " can not be NULL");
@@ -136,80 +145,109 @@ public class DatabaseEngine {
             }
         }
 
-        int newRowIndex = columnsToUpdate.values().iterator().next().getData().size();
-        for (String colName : tableMeta.getColumnNames()) {
-            Column colData = columnsToUpdate.get(colName);
-            String value   = finalValues.get(colName);
-            colData.addData(colData.getData().size(), value);
+        PathManager pm = new PathManager();
+
+        String tablePath = pm.getTablePath(tableName, "bin");
+
+        File tableFile = new File(tablePath);
+
+        if (tableFile.getParentFile() != null && !tableFile.getParentFile().exists()) {
+            tableFile.getParentFile().mkdirs();
         }
 
+        int rowSize = tableMeta.calculateRowSize();
+        int newRowIndex = (tableFile.exists() && tableFile.length() > 0 && rowSize > 0)
+                ? (int) (tableFile.length() / rowSize)
+                : 0;
+
+        Row rowToInsert = new Row(finalValues);
+
         if (isTransaction) {
-            transactionBuffer
-                    .computeIfAbsent(tableName, k -> new HashMap<>())
-                    .putAll(columnsToUpdate);
-        } else {
-            for (Map.Entry<String, Column> entry : columnsToUpdate.entrySet()) {
-                fileManager.saveColumnData(tableName, entry.getKey(), entry.getValue());
-                ColumnMetadata meta = fileManager.loadColumnMetadata(tableName, entry.getKey());
-                meta.setSize(entry.getValue().getData().size());
-                fileManager.saveColumnMetadata(tableName, entry.getKey(), meta);
+            for (Map.Entry<String, String> entry : finalValues.entrySet()) {
+                Column colData = columnsToUpdate.get(entry.getKey());
+                while (colData.getData().size() < newRowIndex) {
+                    colData.getData().add(null);
+                }
+                colData.addData(newRowIndex, entry.getValue());
+
+                transactionBuffer
+                        .computeIfAbsent(tableName, k -> new HashMap<>())
+                        .put(entry.getKey(), colData);
             }
+        } else {
+            RandomAccessBinaryStorage binaryStorage = new RandomAccessBinaryStorage();
+            File file = new File(tablePath);
+            if (file.getParentFile() != null && !file.getParentFile().exists()) {
+                file.getParentFile().mkdirs();
+            }
+            try {
+                binaryStorage.writeRow(tablePath, newRowIndex, rowToInsert, tableMeta.getColumns());
+            } catch (IOException e) {
+                throw new Exception("Failed to write binary data: " + e.getMessage());
+            }
+
             updateIndexesAfterInsert(tableName, finalValues, newRowIndex);
         }
     }
 
     public List<Row> select(String tableName, List<String> columns, boolean isStar,
                             String whereCol, String whereVal, boolean isDistinct) throws Exception {
-        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
-        List<String> targetColumns = isStar ? tableMeta.getColumnNames() : columns;
 
-        Map<String, List<String>> rawData = new HashMap<>();
-        for (String colName : targetColumns) {
-            Column col = loadColumn(tableName, colName);
-            rawData.put(colName, col.getData());
+        TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+        PathManager pm = new PathManager();
+
+        String tablePath = pm.getTablePath(tableName, "bin");
+
+        RandomAccessBinaryStorage storage = new RandomAccessBinaryStorage();
+        List<Row> allRows;
+        try {
+            allRows = storage.readAllRows(tablePath, tableMeta.getColumns());
+        } catch (IOException e) {
+            return Collections.emptyList();
         }
 
-        if (rawData.isEmpty()) return Collections.emptyList();
-        int rowCount = rawData.values().iterator().next().size();
+        List<String> targetColumns = isStar ? tableMeta.getColumnNames() : columns;
 
-        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
-        Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
-
-        List<Row> rows = new ArrayList<>();
-        for (int i = 0; i < rowCount; i++) {
-            if (matchingSet != null && !matchingSet.contains(i)) continue;
-            Map<String, String> rowValues = new HashMap<>();
-            for (String colName : targetColumns) {
-                rowValues.put(colName, rawData.get(colName).get(i));
+        List<Row> filteredRows = new ArrayList<>();
+        for (Row row : allRows) {
+            if (whereCol != null && whereVal != null) {
+                if (!whereVal.equals(row.get(whereCol))) {
+                    continue;
+                }
             }
-            rows.add(new Row(rowValues));
+            if (!isStar) {
+                filteredRows.add(new Row(row.getValuesMap(targetColumns)));
+            } else {
+                filteredRows.add(row);
+            }
         }
 
         if (isDistinct) {
-            return new ArrayList<>(new LinkedHashSet<>(rows));
+            return filteredRows.stream().distinct().collect(Collectors.toList());
         }
-        return rows;
+
+        return filteredRows;
     }
 
     public List<Row> join(String table1Name, List<String> columns1,
                           String table2Name, List<String> columns2,
                           String leftJoinCol, String rightJoinCol) throws Exception {
-        List<Row> leftTable  = select(table1Name, null, true, null, null, false);
+        List<Row> leftTable = select(table1Name, null, true, null, null, false);
         List<Row> rightTable = select(table2Name, null, true, null, null, false);
 
         List<Row> joinedRows = new ArrayList<>();
         for (Row leftRow : leftTable) {
             for (Row rightRow : rightTable) {
-                String left  = leftRow.get(leftJoinCol);
+                String left = leftRow.get(leftJoinCol);
                 String right = rightRow.get(rightJoinCol);
                 if (left == null || right == null) continue;
                 if (!left.equals(right)) continue;
 
                 Map<String, String> combinedValues = new HashMap<>();
-                Map<String, String> leftValues  = (columns1 != null) ? leftRow.getValuesMap(columns1)  : leftRow.getValuesMap();
+                Map<String, String> leftValues = (columns1 != null) ? leftRow.getValuesMap(columns1) : leftRow.getValuesMap();
                 Map<String, String> rightValues = (columns2 != null) ? rightRow.getValuesMap(columns2) : rightRow.getValuesMap();
 
-                leftValues .forEach((k, v) -> combinedValues.put(table1Name + "." + k, v));
+                leftValues.forEach((k, v) -> combinedValues.put(table1Name + "." + k, v));
                 rightValues.forEach((k, v) -> combinedValues.put(table2Name + "." + k, v));
                 joinedRows.add(new Row(combinedValues));
             }
@@ -282,8 +320,8 @@ public class DatabaseEngine {
             if (matchingRows == null || matchingRows.isEmpty()) return 0;
         }
 
-        Map<String, Column>         updatedColumns = new HashMap<>();
-        Map<String, ColumnMetadata> metadataMap    = new HashMap<>();
+        Map<String, Column> updatedColumns = new HashMap<>();
+        Map<String, ColumnMetadata> metadataMap = new HashMap<>();
         for (String colName : columnNames) {
             updatedColumns.put(colName, loadColumn(tableName, colName));
             metadataMap.put(colName, fileManager.loadColumnMetadata(tableName, colName));
@@ -295,9 +333,9 @@ public class DatabaseEngine {
 
         for (int rowIndex : matchingRows) {
             for (Map.Entry<String, String> entry : setValues.entrySet()) {
-                String colName  = entry.getKey();
+                String colName = entry.getKey();
                 String newValue = normalizeValue(entry.getValue());
-                Column column   = updatedColumns.get(colName);
+                Column column = updatedColumns.get(colName);
                 ColumnMetadata colMeta = metadataMap.get(colName);
 
                 if (!newValue.equals("NULL")) {
@@ -315,9 +353,12 @@ public class DatabaseEngine {
             Column column = updatedColumns.get(colName);
             ColumnMetadata colMeta = metadataMap.get(colName);
             boolean isPrimaryKey = colMeta.getConstraints().contains(Constraints.PRIMARY_KEY);
-            boolean isNotNull    = colMeta.getConstraints().contains(Constraints.NOT_NULL);
-            boolean isUnique     = colMeta.getConstraints().contains(Constraints.UNIQUE);
-            if (isPrimaryKey) { isNotNull = true; isUnique = true; }
+            boolean isNotNull = colMeta.getConstraints().contains(Constraints.NOT_NULL);
+            boolean isUnique = colMeta.getConstraints().contains(Constraints.UNIQUE);
+            if (isPrimaryKey) {
+                isNotNull = true;
+                isUnique = true;
+            }
 
             List<String> data = column.getData();
             Set<String> uniqueCheck = new HashSet<>();
@@ -353,7 +394,7 @@ public class DatabaseEngine {
     public void beginTransaction() {
         if (isTransaction) throw new IllegalStateException("Transaction already active");
         isTransaction = true;
-        currentTxId   = UUID.randomUUID().toString();
+        currentTxId = UUID.randomUUID().toString();
         transactionBuffer.clear();
     }
 
@@ -361,59 +402,69 @@ public class DatabaseEngine {
         if (!isTransaction) throw new IllegalStateException("No active transaction");
 
         try {
-            fileManager.ensureWalDirExists();
+            // 1. WAL (Write Ahead Log) — пока оставляем логику поколоночную,
+            // если твоя система восстановления завязана на это.
+            // Но в идеале WAL тоже должен стать бинарным.
 
-            List<WalEntry.WalColumnEntry> walColumns = new ArrayList<>();
+            // 2. Итерируемся по таблицам, затронутым в транзакции
             for (Map.Entry<String, Map<String, Column>> tableEntry : transactionBuffer.entrySet()) {
                 String tableName = tableEntry.getKey();
-                for (String colName : tableEntry.getValue().keySet()) {
-                    List<String> originalData;
-                    try {
-                        originalData = new ArrayList<>(
-                                fileManager.loadColumnData(tableName, colName).getData());
-                    } catch (FileStorageException e) {
-                        originalData = Collections.emptyList();
-                    }
-                    walColumns.add(new WalEntry.WalColumnEntry(tableName, colName, originalData));
-                }
-            }
+                TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
+                PathManager pm = new PathManager();
 
-            WalEntry walEntry = new WalEntry(currentTxId, "PENDING", walColumns);
-            fileManager.writeWalAtomic(currentTxId, walEntry);
+                String tablePath = pm.getTablePath(tableName, "bin");
+                // Нам нужно собрать из разрозненных Column объекты Row.
+                // Предположим, индексы новых строк хранятся в Column.
+                Map<Integer, Map<String, String>> rowsToUpdate = new HashMap<>();
 
-            for (Map.Entry<String, Map<String, Column>> tableEntry : transactionBuffer.entrySet()) {
-                String tableName = tableEntry.getKey();
                 for (Map.Entry<String, Column> colEntry : tableEntry.getValue().entrySet()) {
-                    ArrayList<String> dataCopy = new ArrayList<>(colEntry.getValue().getData());
-                    fileManager.saveColumnData(tableName, colEntry.getKey(), new Column(dataCopy));
-                    ColumnMetadata meta = fileManager.loadColumnMetadata(tableName, colEntry.getKey());
-                    meta.setSize(dataCopy.size());
-                    fileManager.saveColumnMetadata(tableName, colEntry.getKey(), meta);
+                    String colName = colEntry.getKey();
+                    List<String> colData = colEntry.getValue().getData();
+                    // Для каждой строки в этой колонке записываем значение
+                    for (int i = 0; i < colData.size(); i++) {
+                        rowsToUpdate.computeIfAbsent(i, k -> new HashMap<>()).put(colName, colData.get(i));
+                    }
                 }
 
+                // 3. ПИШЕМ В БИНАРНЫЙ ФАЙЛ (Сортируем по индексу!)
+                RandomAccessBinaryStorage binaryStorage = new RandomAccessBinaryStorage();
+
+                // Сортировка важна, чтобы seek() шел последовательно или просто корректно
+                List<Integer> sortedIndices = new ArrayList<>(rowsToUpdate.keySet());
+                Collections.sort(sortedIndices);
+
+                for (Integer rowIndex : sortedIndices) {
+                    Row row = new Row(rowsToUpdate.get(rowIndex));
+                    try {
+                        binaryStorage.writeRow(tablePath, rowIndex, row, tableMeta.getColumns());
+                    } catch (IOException e) {
+                        throw new FileStorageException("Binary write failed during commit: " + e.getMessage());
+                    }
+                }
+
+                // 4. Обновляем индексы один раз для всей таблицы
                 rebuildIndexesForTable(tableName);
             }
 
             fileManager.deleteWal(currentTxId);
 
-        } catch (FileStorageException e) {
+        } catch (Exception e) { // Ловим Exception, так как бинарная запись кидает IOException
             transactionBuffer.clear();
             isTransaction = false;
-            currentTxId   = null;
-            throw new FileStorageException(
-                    "Commit failed. Database will be recovered automatically on next startup. Cause: " + e.getMessage());
+            currentTxId = null;
+            throw new FileStorageException("Commit failed: " + e.getMessage());
         }
 
         transactionBuffer.clear();
         isTransaction = false;
-        currentTxId   = null;
+        currentTxId = null;
     }
 
     public void rollback() {
         if (!isTransaction) throw new IllegalStateException("No active transaction");
         transactionBuffer.clear();
         isTransaction = false;
-        currentTxId   = null;
+        currentTxId = null;
     }
 
     public boolean isTransactionActive() {
@@ -425,7 +476,8 @@ public class DatabaseEngine {
             try {
                 fileManager.deleteWalTmp(txId);
                 System.out.println("[WAL] Removed incomplete WAL tmp: " + txId);
-            } catch (FileStorageException ignored) {}
+            } catch (FileStorageException ignored) {
+            }
         }
 
         for (String txId : fileManager.listPendingWalIds()) {
@@ -475,7 +527,8 @@ public class DatabaseEngine {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table does not exist: " + tableName);
 
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
-        if (!tableMeta.getColumnNames().contains(columnName)) throw new NoFileException("Column does not exist: " + columnName);
+        if (!tableMeta.getColumnNames().contains(columnName))
+            throw new NoFileException("Column does not exist: " + columnName);
 
         tableMeta.getColumnNames().remove(columnName);
         tableMeta.setColumnCount(tableMeta.getColumnCount() - 1);
@@ -491,8 +544,10 @@ public class DatabaseEngine {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table does not exist: " + tableName);
 
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
-        if (!tableMeta.getColumnNames().contains(columnName))    throw new NoFileException("Column does not exist: " + columnName);
-        if (tableMeta.getColumnNames().contains(newName))         throw new AlreadyExistsException("Column already exists: " + newName);
+        if (!tableMeta.getColumnNames().contains(columnName))
+            throw new NoFileException("Column does not exist: " + columnName);
+        if (tableMeta.getColumnNames().contains(newName))
+            throw new AlreadyExistsException("Column already exists: " + newName);
 
         int index = tableMeta.getColumnNames().indexOf(columnName);
         tableMeta.getColumnNames().set(index, newName);
@@ -512,8 +567,8 @@ public class DatabaseEngine {
     }
 
     public void alterTableRenameTable(String tableName, String newName) throws FileStorageException {
-        if (!fileManager.tableExists(tableName))  throw new NoTableException("Table does not exist: " + tableName);
-        if (fileManager.tableExists(newName))      throw new AlreadyExistsException("Table already exists: " + newName);
+        if (!fileManager.tableExists(tableName)) throw new NoTableException("Table does not exist: " + tableName);
+        if (fileManager.tableExists(newName)) throw new AlreadyExistsException("Table already exists: " + newName);
 
         fileManager.renameDirectory(tableName, newName);
         TableMetadata tableMeta = fileManager.loadTableMetadata(newName);
@@ -580,7 +635,8 @@ public class DatabaseEngine {
         List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
         Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
 
-        double sum = 0; int count = 0;
+        double sum = 0;
+        int count = 0;
         for (int i = 0; i < data.size(); i++) {
             if (matchingSet != null && !matchingSet.contains(i)) continue;
             String value = data.get(i);
@@ -608,10 +664,15 @@ public class DatabaseEngine {
             if (matchingSet != null && !matchingSet.contains(i)) continue;
             String value = data.get(i);
             if (value == null || value.equals("NULL")) continue;
-            if (minValue == null) { minValue = value; continue; }
+            if (minValue == null) {
+                minValue = value;
+                continue;
+            }
             if (type == DataType.INTEGER && Long.parseLong(value) < Long.parseLong(minValue)) minValue = value;
-            else if (type == DataType.REAL && Double.parseDouble(value) < Double.parseDouble(minValue)) minValue = value;
-            else if (type != DataType.INTEGER && type != DataType.REAL && value.compareTo(minValue) < 0) minValue = value;
+            else if (type == DataType.REAL && Double.parseDouble(value) < Double.parseDouble(minValue))
+                minValue = value;
+            else if (type != DataType.INTEGER && type != DataType.REAL && value.compareTo(minValue) < 0)
+                minValue = value;
         }
         return minValue;
     }
@@ -629,10 +690,15 @@ public class DatabaseEngine {
             if (matchingSet != null && !matchingSet.contains(i)) continue;
             String value = data.get(i);
             if (value == null || value.equals("NULL")) continue;
-            if (maxValue == null) { maxValue = value; continue; }
+            if (maxValue == null) {
+                maxValue = value;
+                continue;
+            }
             if (type == DataType.INTEGER && Long.parseLong(value) > Long.parseLong(maxValue)) maxValue = value;
-            else if (type == DataType.REAL && Double.parseDouble(value) > Double.parseDouble(maxValue)) maxValue = value;
-            else if (type != DataType.INTEGER && type != DataType.REAL && value.compareTo(maxValue) > 0) maxValue = value;
+            else if (type == DataType.REAL && Double.parseDouble(value) > Double.parseDouble(maxValue))
+                maxValue = value;
+            else if (type != DataType.INTEGER && type != DataType.REAL && value.compareTo(maxValue) > 0)
+                maxValue = value;
         }
         return maxValue;
     }
@@ -694,8 +760,9 @@ public class DatabaseEngine {
         try {
             switch (type) {
                 case INTEGER -> Long.parseLong(value);
-                case REAL    -> Double.parseDouble(value);
-                case TEXT, BLOB, NULL -> { }
+                case REAL -> Double.parseDouble(value);
+                case TEXT, BLOB, NULL -> {
+                }
             }
         } catch (NumberFormatException e) {
             throw new Exception("Type mismatch: expected " + type + ", got '" + value + "'");
@@ -708,7 +775,7 @@ public class DatabaseEngine {
         for (String operator : operators) {
             int idx = normalized.indexOf(operator);
             if (idx <= 0) continue;
-            String left  = normalized.substring(0, idx);
+            String left = normalized.substring(0, idx);
             String right = normalized.substring(idx + operator.length());
             if (!left.equals(columnName)) continue;
             return compareCheckValues(value, right, operator);
@@ -722,19 +789,23 @@ public class DatabaseEngine {
                 ? Double.compare(Double.parseDouble(value), Double.parseDouble(rightOperand))
                 : value.compareTo(rightOperand);
         return switch (operator) {
-            case "="        -> cmp == 0;
+            case "=" -> cmp == 0;
             case "!=", "<>" -> cmp != 0;
-            case ">"        -> cmp > 0;
-            case "<"        -> cmp < 0;
-            case ">="       -> cmp >= 0;
-            case "<="       -> cmp <= 0;
-            default         -> true;
+            case ">" -> cmp > 0;
+            case "<" -> cmp < 0;
+            case ">=" -> cmp >= 0;
+            case "<=" -> cmp <= 0;
+            default -> true;
         };
     }
 
     private boolean isNumeric(String value) {
-        try { Double.parseDouble(value); return true; }
-        catch (NumberFormatException e) { return false; }
+        try {
+            Double.parseDouble(value);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private void createEmptyIndex(String tableName, String columnName) throws FileStorageException {
