@@ -1,7 +1,6 @@
 package FileWork;
 
 import Exceptions.*;
-import FileWork.Metadata.ColumnMetadata;
 
 public interface FileStorage {
     boolean exists(String path);
@@ -19,4 +18,6 @@ public interface FileStorage {
     void deleteDirectory(String path) throws FileStorageException;
 
     void renameDirectory(String path, String newName) throws FileStorageException;
+
+    void writeRow(String path, int rowIndex, String newValue) throws FileStorageException;
 }

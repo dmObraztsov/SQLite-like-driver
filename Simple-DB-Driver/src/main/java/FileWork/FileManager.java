@@ -189,6 +189,10 @@ public class FileManager {
         return ids;
     }
 
+    public void writeColumnRow(String tableName, String columnName, int rowIndex, String value) throws FileStorageException {
+        fileStorage.writeRow(PathManager.getColumnPath(nameDB, tableName, columnName), rowIndex, value);
+    }
+
     public boolean indexExists(String tableName, String columnName) {
         return fileStorage.exists(PathManager.getIndexPath(nameDB, tableName, columnName));
     }

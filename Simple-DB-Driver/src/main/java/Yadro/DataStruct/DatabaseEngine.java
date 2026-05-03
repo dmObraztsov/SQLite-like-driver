@@ -98,7 +98,11 @@ public class DatabaseEngine {
             }
 
             if (colMeta.getConstraints().contains(Constraints.AUTOINCREMENT) && valueToInsert.equals("NULL")) {
-                int nextValue = colData.getData().size() + 1;
+                int nextValue = colData.getData().stream()
+                        .filter(v -> v != null && !v.equals("NULL"))
+                        .mapToInt(v -> { try { return Integer.parseInt(v); } catch (NumberFormatException e) { return 0; } })
+                        .max()
+                        .orElse(0) + 1;
                 valueToInsert = String.valueOf(nextValue);
             }
 
@@ -159,7 +163,7 @@ public class DatabaseEngine {
     }
 
     public List<Row> select(String tableName, List<String> columns, boolean isStar,
-                            String whereCol, String whereVal, boolean isDistinct) throws Exception {
+                            String whereCol, String whereOp, String whereVal, boolean isDistinct) throws Exception {
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
         List<String> targetColumns = isStar ? tableMeta.getColumnNames() : columns;
 
@@ -172,7 +176,7 @@ public class DatabaseEngine {
         if (rawData.isEmpty()) return Collections.emptyList();
         int rowCount = rawData.values().iterator().next().size();
 
-        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereOp, whereVal);
         Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
 
         List<Row> rows = new ArrayList<>();
@@ -194,8 +198,8 @@ public class DatabaseEngine {
     public List<Row> join(String table1Name, List<String> columns1,
                           String table2Name, List<String> columns2,
                           String leftJoinCol, String rightJoinCol) throws Exception {
-        List<Row> leftTable  = select(table1Name, null, true, null, null, false);
-        List<Row> rightTable = select(table2Name, null, true, null, null, false);
+        List<Row> leftTable  = select(table1Name, null, true, null, null, null, false);
+        List<Row> rightTable = select(table2Name, null, true, null, null, null, false);
 
         List<Row> joinedRows = new ArrayList<>();
         for (Row leftRow : leftTable) {
@@ -217,7 +221,7 @@ public class DatabaseEngine {
         return joinedRows;
     }
 
-    public int delete(String tableName, String whereCol, String whereVal) throws FileStorageException {
+    public int delete(String tableName, String whereCol, String whereOp, String whereVal) throws FileStorageException {
         if (!fileManager.tableExists(tableName)) {
             throw new NoTableException("Table not found: " + tableName);
         }
@@ -231,7 +235,7 @@ public class DatabaseEngine {
             matchingRows = new ArrayList<>();
             for (int i = 0; i < rowCount; i++) matchingRows.add(i);
         } else {
-            matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+            matchingRows = findMatchingRows(tableName, whereCol, whereOp, whereVal);
             if (matchingRows == null || matchingRows.isEmpty()) return 0;
         }
 
@@ -263,7 +267,7 @@ public class DatabaseEngine {
     }
 
     public int update(String tableName, Map<String, String> setValues,
-                      String whereCol, String whereVal) throws FileStorageException {
+                      String whereCol, String whereOp, String whereVal) throws FileStorageException {
         if (!fileManager.tableExists(tableName)) {
             throw new NoTableException("Table not found: " + tableName);
         }
@@ -278,7 +282,7 @@ public class DatabaseEngine {
             for (int i = 0; i < rowCount; i++) matchingRows.add(i);
         } else {
             if (!columnNames.contains(whereCol)) throw new NoFileException("Column does not exist: " + whereCol);
-            matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+            matchingRows = findMatchingRows(tableName, whereCol, whereOp, whereVal);
             if (matchingRows == null || matchingRows.isEmpty()) return 0;
         }
 
@@ -339,10 +343,14 @@ public class DatabaseEngine {
                     .computeIfAbsent(tableName, k -> new HashMap<>())
                     .putAll(updatedColumns);
         } else {
-            for (Map.Entry<String, Column> entry : updatedColumns.entrySet()) {
-                fileManager.saveColumnData(tableName, entry.getKey(), entry.getValue());
+            // In-place: write only the cells that were actually modified
+            for (int rowIndex : matchingRows) {
+                for (Map.Entry<String, String> entry : setValues.entrySet()) {
+                    String colName = entry.getKey();
+                    String newVal  = normalizeValue(entry.getValue());
+                    fileManager.writeColumnRow(tableName, colName, rowIndex, newVal);
+                }
             }
-
             rebuildIndexesForTable(tableName);
         }
 
@@ -521,7 +529,7 @@ public class DatabaseEngine {
         fileManager.saveTableMetadata(newName, tableMeta);
     }
 
-    public int count(String tableName, String columnName, String whereCol, String whereVal) throws FileStorageException {
+    public int count(String tableName, String columnName, String whereCol, String whereOp, String whereVal) throws FileStorageException {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table not found: " + tableName);
 
         List<String> columnNames = fileManager.loadTableMetadata(tableName).getColumnNames();
@@ -530,11 +538,11 @@ public class DatabaseEngine {
         Column column = loadColumn(tableName, targetColumn);
         if (whereCol == null) return column.getData().size();
 
-        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereOp, whereVal);
         return matchingRows == null ? 0 : matchingRows.size();
     }
 
-    public double sum(String tableName, String columnName, String whereCol, String whereVal) throws FileStorageException {
+    public double sum(String tableName, String columnName, String whereCol, String whereOp, String whereVal) throws FileStorageException {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table not found: " + tableName);
 
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
@@ -547,7 +555,7 @@ public class DatabaseEngine {
 
         Column column = loadColumn(tableName, targetColumn);
         List<String> data = column.getData();
-        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereOp, whereVal);
         Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
 
         double sum = 0;
@@ -564,7 +572,7 @@ public class DatabaseEngine {
         return sum;
     }
 
-    public double avg(String tableName, String columnName, String whereCol, String whereVal) throws FileStorageException {
+    public double avg(String tableName, String columnName, String whereCol, String whereOp, String whereVal) throws FileStorageException {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table not found: " + tableName);
 
         TableMetadata tableMeta = fileManager.loadTableMetadata(tableName);
@@ -577,7 +585,7 @@ public class DatabaseEngine {
 
         Column column = loadColumn(tableName, targetColumn);
         List<String> data = column.getData();
-        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereOp, whereVal);
         Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
 
         double sum = 0; int count = 0;
@@ -595,13 +603,13 @@ public class DatabaseEngine {
         return (count == 0) ? 0 : sum / count;
     }
 
-    public String min(String tableName, String columnName, String whereCol, String whereVal) throws FileStorageException {
+    public String min(String tableName, String columnName, String whereCol, String whereOp, String whereVal) throws FileStorageException {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table not found: " + tableName);
         ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, columnName);
         DataType type = colMeta.getType();
         Column column = loadColumn(tableName, columnName);
         List<String> data = column.getData();
-        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereOp, whereVal);
         Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
         String minValue = null;
         for (int i = 0; i < data.size(); i++) {
@@ -616,13 +624,13 @@ public class DatabaseEngine {
         return minValue;
     }
 
-    public String max(String tableName, String columnName, String whereCol, String whereVal) throws FileStorageException {
+    public String max(String tableName, String columnName, String whereCol, String whereOp, String whereVal) throws FileStorageException {
         if (!fileManager.tableExists(tableName)) throw new NoTableException("Table not found: " + tableName);
         ColumnMetadata colMeta = fileManager.loadColumnMetadata(tableName, columnName);
         DataType type = colMeta.getType();
         Column column = loadColumn(tableName, columnName);
         List<String> data = column.getData();
-        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereVal);
+        List<Integer> matchingRows = findMatchingRows(tableName, whereCol, whereOp, whereVal);
         Set<Integer> matchingSet = (matchingRows == null) ? null : new HashSet<>(matchingRows);
         String maxValue = null;
         for (int i = 0; i < data.size(); i++) {
@@ -637,12 +645,13 @@ public class DatabaseEngine {
         return maxValue;
     }
 
-    private List<Integer> findMatchingRows(String tableName, String whereCol, String whereVal) throws FileStorageException {
+    private List<Integer> findMatchingRows(String tableName, String whereCol, String whereOp, String whereVal) throws FileStorageException {
         if (whereCol == null) return null;
 
         String normalizedVal = normalizeValue(whereVal);
+        String op = (whereOp != null) ? whereOp : "=";
 
-        if (!isTransaction && fileManager.indexExists(tableName, whereCol)) {
+        if ("=".equals(op) && !isTransaction && fileManager.indexExists(tableName, whereCol)) {
             ColumnIndex idx = fileManager.loadIndex(tableName, whereCol);
             return new ArrayList<>(idx.lookup(normalizedVal));
         }
@@ -651,11 +660,31 @@ public class DatabaseEngine {
         List<String> data = column.getData();
         List<Integer> result = new ArrayList<>();
         for (int i = 0; i < data.size(); i++) {
-            if (data.get(i) != null && data.get(i).equals(normalizedVal)) {
+            if (matchesCondition(data.get(i), op, normalizedVal)) {
                 result.add(i);
             }
         }
         return result;
+    }
+
+    private boolean matchesCondition(String dataValue, String op, String filterValue) {
+        if (dataValue == null || dataValue.equals("NULL")) return false;
+        if (filterValue == null) return false;
+
+        boolean numeric = isNumeric(dataValue) && isNumeric(filterValue);
+        int cmp = numeric
+                ? Double.compare(Double.parseDouble(dataValue), Double.parseDouble(filterValue))
+                : dataValue.compareTo(filterValue);
+
+        return switch (op) {
+            case "="        -> cmp == 0;
+            case "!=", "<>" -> cmp != 0;
+            case ">"        -> cmp > 0;
+            case "<"        -> cmp < 0;
+            case ">="       -> cmp >= 0;
+            case "<="       -> cmp <= 0;
+            default         -> false;
+        };
     }
 
     private Column loadColumn(String tableName, String colName) throws FileStorageException {
