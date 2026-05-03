@@ -178,7 +178,7 @@ class DatabaseEngineTest {
         when(fileManager.loadColumnData("users", "id")).thenReturn(ids);
         when(fileManager.loadColumnData("users", "name")).thenReturn(names);
 
-        List<Row> rows = engine.select("users", null, true, null, null, false);
+        List<Row> rows = engine.select("users", null, true, null, null, null, false);
 
         assertThat(rows).hasSize(2);
         assertThat(rows.get(0).get("id")).isEqualTo("1");
@@ -201,7 +201,7 @@ class DatabaseEngineTest {
         when(fileManager.loadColumnData("users", "id")).thenReturn(ids);
         when(fileManager.loadColumnData("users", "name")).thenReturn(names);
 
-        List<Row> rows = engine.select("users", List.of("id", "name"), false, "id", "2", false);
+        List<Row> rows = engine.select("users", List.of("id", "name"), false, "id", "=", "2", false);
 
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0).get("name")).isEqualTo("Bob");
