@@ -40,3 +40,7 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Test runtime artifacts ###
+test_e2e_db/
+database/

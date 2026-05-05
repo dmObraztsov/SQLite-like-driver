@@ -63,11 +63,13 @@ public class Queries {
         }
     }
 
-    public record SelectDataQuery(List<String> selectCols, boolean isStar, String tableName, String whereName, String whereValue, boolean isDistinct) implements QueryInterface {
+    public record SelectDataQuery(List<String> selectCols, boolean isStar, String tableName,
+                                   String whereName, String whereOp, String whereValue,
+                                   boolean isDistinct) implements QueryInterface {
 
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception {
-            List<Row> results = engine.select(tableName, selectCols, isStar, whereName, whereValue, isDistinct);
+            List<Row> results = engine.select(tableName, selectCols, isStar, whereName, whereOp, whereValue, isDistinct);
             return new ExecutionResult(true, "Select completed.", results);
         }
     }
@@ -182,60 +184,60 @@ public class Queries {
         }
     }
 
-    public record DeleteTableQuery(String tableName, String whereCol, String whereValue) implements QueryInterface {
+    public record DeleteTableQuery(String tableName, String whereCol, String whereOp, String whereValue) implements QueryInterface {
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
-            int deletedRows = engine.delete(tableName, whereCol, whereValue);
+            int deletedRows = engine.delete(tableName, whereCol, whereOp, whereValue);
             String message = (deletedRows > 0) ? deletedRows + " row(s) deleted from '" + tableName + "'." : "No matching rows found in '" + tableName + "'.";
             return new ExecutionResult(true, message);
         }
     }
 
-    public record UpdateTableQuery(String tableName, Map<String, String> setValues, String whereCol, String whereValue) implements QueryInterface {
+    public record UpdateTableQuery(String tableName, Map<String, String> setValues, String whereCol, String whereOp, String whereValue) implements QueryInterface {
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
-            int updatedRows = engine.update(tableName, setValues, whereCol, whereValue);
+            int updatedRows = engine.update(tableName, setValues, whereCol, whereOp, whereValue);
             String message = (updatedRows > 0) ? updatedRows + " row(s) updated in '" + tableName + "'." : "No matching rows found in '" + tableName + "'.";
             return new ExecutionResult(true, message);
         }
     }
 
-    public record CountQuery(String tableName, String columnName, String whereCol, String whereValue) implements QueryInterface {
+    public record CountQuery(String tableName, String columnName, String whereCol, String whereOp, String whereValue) implements QueryInterface {
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
-            int count = engine.count(tableName, columnName, whereCol, whereValue);
+            int count = engine.count(tableName, columnName, whereCol, whereOp, whereValue);
             return new ExecutionResult(true, "Count result: " + count, List.of(new Row(Map.of("COUNT", String.valueOf(count)))));
         }
     }
 
-    public record SumQuery(String tableName, String columnName, String whereCol, String whereValue) implements QueryInterface {
+    public record SumQuery(String tableName, String columnName, String whereCol, String whereOp, String whereValue) implements QueryInterface {
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
-            double sum = engine.sum(tableName, columnName, whereCol, whereValue);
+            double sum = engine.sum(tableName, columnName, whereCol, whereOp, whereValue);
             return new ExecutionResult(true, "Sum result: " + sum, List.of(new Row(Map.of("SUM", String.valueOf(sum)))));
         }
     }
 
-    public record AvgQuery(String tableName, String columnName, String whereCol, String whereValue) implements QueryInterface {
+    public record AvgQuery(String tableName, String columnName, String whereCol, String whereOp, String whereValue) implements QueryInterface {
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
-            double avg = engine.avg(tableName, columnName, whereCol, whereValue);
+            double avg = engine.avg(tableName, columnName, whereCol, whereOp, whereValue);
             return new ExecutionResult(true, "Avg result: " + avg, List.of(new Row(Map.of("AVG", String.valueOf(avg)))));
         }
     }
 
-    public record MinQuery(String tableName, String columnName, String whereCol, String whereValue) implements QueryInterface {
+    public record MinQuery(String tableName, String columnName, String whereCol, String whereOp, String whereValue) implements QueryInterface {
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
-            String min = engine.min(tableName, columnName, whereCol, whereValue);
+            String min = engine.min(tableName, columnName, whereCol, whereOp, whereValue);
             return new ExecutionResult(true, "Min result: " + min, List.of(new Row(Map.of("MIN", min))));
         }
     }
 
-    public record MaxQuery(String tableName, String columnName, String whereCol, String whereValue) implements QueryInterface {
+    public record MaxQuery(String tableName, String columnName, String whereCol, String whereOp, String whereValue) implements QueryInterface {
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
-            String max = engine.max(tableName, columnName, whereCol, whereValue);
+            String max = engine.max(tableName, columnName, whereCol, whereOp, whereValue);
             return new ExecutionResult(true, "Max result: " + max, List.of(new Row(Map.of("MAX", max))));
         }
     }

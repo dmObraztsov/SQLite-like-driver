@@ -93,30 +93,35 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                         baseTable,
                         colName,
                         where == null ? null : where.columnName(),
+                        where == null ? null : where.operator(),
                         where == null ? null : where.literalValue()
                 );
                 case "SUM" -> new Queries.SumQuery(
                         baseTable,
                         colName,
                         where == null ? null : where.columnName(),
+                        where == null ? null : where.operator(),
                         where == null ? null : where.literalValue()
                 );
                 case "AVG" -> new Queries.AvgQuery(
                         baseTable,
                         colName,
                         where == null ? null : where.columnName(),
+                        where == null ? null : where.operator(),
                         where == null ? null : where.literalValue()
                 );
                 case "MIN" -> new Queries.MinQuery(
                         baseTable,
                         colName,
                         where == null ? null : where.columnName(),
+                        where == null ? null : where.operator(),
                         where == null ? null : where.literalValue()
                 );
                 case "MAX" -> new Queries.MaxQuery(
                         baseTable,
                         colName,
                         where == null ? null : where.columnName(),
+                        where == null ? null : where.operator(),
                         where == null ? null : where.literalValue()
                 );
                 default -> throw new IllegalArgumentException("Unsupported aggregate function: " + funcName);
@@ -138,6 +143,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                     isStar,
                     baseTable,
                     where == null ? null : where.columnName(),
+                    where == null ? null : where.operator(),
                     where == null ? null : where.literalValue(),
                     isDistinct
             );
@@ -235,15 +241,17 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         String whereCol = null;
         String whereVal = null;
 
+        String whereOp = null;
         if (whereClause != null) {
             SimplePredicate where = extractSimpleWhere(whereClause);
             if (where != null) {
                 whereCol = where.columnName();
+                whereOp  = where.operator();
                 whereVal = where.literalValue();
             }
         }
 
-        return new Queries.DeleteTableQuery(tableName, whereCol, whereVal);
+        return new Queries.DeleteTableQuery(tableName, whereCol, whereOp, whereVal);
     }
 
     @Override
@@ -268,16 +276,18 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         String whereCol = null;
+        String whereOp  = null;
         String whereVal = null;
         if (ctx.whereClause() != null) {
             SimplePredicate where = extractSimpleWhere(ctx.whereClause());
             if (where != null) {
                 whereCol = where.columnName();
+                whereOp  = where.operator();
                 whereVal = where.literalValue();
             }
         }
 
-        return new Queries.UpdateTableQuery(tableName, setValues, whereCol, whereVal);
+        return new Queries.UpdateTableQuery(tableName, setValues, whereCol, whereOp, whereVal);
     }
 
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {
@@ -384,17 +394,28 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         SQLParser.PredicateContext predicate = andCondition.predicate(0);
-        if (predicate.comparisonOperator() == null || predicate.comparisonOperator().EQ() == null) {
-            throw new IllegalArgumentException("Only WHERE column = literal is supported right now");
+        if (predicate.comparisonOperator() == null) {
+            throw new IllegalArgumentException("Only WHERE column op literal is supported right now");
         }
         if (predicate.operand(0).columnRef() == null || predicate.operand(1).literal() == null) {
-            throw new IllegalArgumentException("Only WHERE column = literal is supported right now");
+            throw new IllegalArgumentException("Only WHERE column op literal is supported right now");
         }
 
         return new SimplePredicate(
                 toUnqualifiedColumnName(predicate.operand(0).columnRef()),
+                extractOperator(predicate.comparisonOperator()),
                 getCleanLiteral(predicate.operand(1).literal())
         );
+    }
+
+    private String extractOperator(SQLParser.ComparisonOperatorContext ctx) {
+        if (ctx.EQ() != null) return "=";
+        if (ctx.NE() != null) return "!=";
+        if (ctx.GT() != null) return ">";
+        if (ctx.LT() != null) return "<";
+        if (ctx.GE() != null) return ">=";
+        if (ctx.LE() != null) return "<=";
+        return "=";
     }
 
     private SimpleJoin extractSimpleJoin(SQLParser.JoinClauseContext joinClause) {
@@ -429,7 +450,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         );
     }
 
-    private record SimplePredicate(String columnName, String literalValue) {
+    private record SimplePredicate(String columnName, String operator, String literalValue) {
     }
 
     private record SimpleJoin(String rightTableName, String leftColumnName, String rightColumnName) {

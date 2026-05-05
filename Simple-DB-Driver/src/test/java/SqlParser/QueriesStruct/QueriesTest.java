@@ -104,10 +104,10 @@ class QueriesTest {
         @Test
         void testSelectDataQuery() throws Exception {
             List<Row> mockRows = List.of(new Row(Map.of("id", "1")));
-            when(engine.select(TABLE_NAME, List.of("id"), false, "id", "1", false))
+            when(engine.select(TABLE_NAME, List.of("id"), false, "id", "=", "1", false))
                     .thenReturn(mockRows);
 
-            var query = new Queries.SelectDataQuery(List.of("id"), false, TABLE_NAME, "id", "1", false);
+            var query = new Queries.SelectDataQuery(List.of("id"), false, TABLE_NAME, "id", "=", "1", false);
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.isSuccess());
@@ -193,9 +193,9 @@ class QueriesTest {
 
         @Test
         void testDeleteRowsFound() throws Exception {
-            when(engine.delete(TABLE_NAME, "id", "1")).thenReturn(5);
+            when(engine.delete(TABLE_NAME, "id", "=", "1")).thenReturn(5);
 
-            var query = new Queries.DeleteTableQuery(TABLE_NAME, "id", "1");
+            var query = new Queries.DeleteTableQuery(TABLE_NAME, "id", "=", "1");
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.isSuccess());
@@ -204,9 +204,9 @@ class QueriesTest {
 
         @Test
         void testDeleteNoRowsFound() throws Exception {
-            when(engine.delete(TABLE_NAME, "id", "1")).thenReturn(0);
+            when(engine.delete(TABLE_NAME, "id", "=", "1")).thenReturn(0);
 
-            var query = new Queries.DeleteTableQuery(TABLE_NAME, "id", "1");
+            var query = new Queries.DeleteTableQuery(TABLE_NAME, "id", "=", "1");
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.isSuccess());
@@ -216,9 +216,9 @@ class QueriesTest {
         @Test
         void testUpdateRowsFound() throws Exception {
             Map<String, String> values = Map.of("name", "Oleg");
-            when(engine.update(TABLE_NAME, values, "id", "1")).thenReturn(2);
+            when(engine.update(TABLE_NAME, values, "id", "=", "1")).thenReturn(2);
 
-            var query = new Queries.UpdateTableQuery(TABLE_NAME, values, "id", "1");
+            var query = new Queries.UpdateTableQuery(TABLE_NAME, values, "id", "=", "1");
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.isSuccess());
@@ -228,9 +228,9 @@ class QueriesTest {
         @Test
         void testUpdateNoRowsFound() throws Exception {
             Map<String, String> values = Map.of("name", "Oleg");
-            when(engine.update(TABLE_NAME, values, "id", "1")).thenReturn(0);
+            when(engine.update(TABLE_NAME, values, "id", "=", "1")).thenReturn(0);
 
-            var query = new Queries.UpdateTableQuery(TABLE_NAME, values, "id", "1");
+            var query = new Queries.UpdateTableQuery(TABLE_NAME, values, "id", "=", "1");
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.getMessage().contains("No matching rows found"));

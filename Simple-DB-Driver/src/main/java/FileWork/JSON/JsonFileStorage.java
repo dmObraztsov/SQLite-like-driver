@@ -2,7 +2,7 @@ package FileWork.JSON;
 
 import Exceptions.*;
 import FileWork.FileStorage;
-import FileWork.Metadata.ColumnMetadata;
+import Yadro.DataStruct.Column;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
@@ -173,6 +173,13 @@ public class JsonFileStorage implements FileStorage {
         if (!renamed) {
             throw new FileStorageException("Could not rename directory: " + newPath);
         }
+    }
+
+    @Override
+    public void writeRow(String path, int rowIndex, String newValue) throws FileStorageException {
+        Column col = readFile(path, Column.class);
+        col.getData().set(rowIndex, newValue != null ? newValue : "NULL");
+        writeFile(path, col);
     }
 
     private boolean deleteFolder(File folder) {

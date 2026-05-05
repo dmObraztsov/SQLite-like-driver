@@ -5,7 +5,6 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 
 @Setter
 @Getter
@@ -45,6 +44,6 @@ public class TableMetadata implements Serializable {
     }
 
     public void setTableName(String tableName) {
-
+        this.name = tableName;
     }
 }
