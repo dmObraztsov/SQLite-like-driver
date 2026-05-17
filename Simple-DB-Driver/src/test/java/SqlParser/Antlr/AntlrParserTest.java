@@ -3,6 +3,7 @@ package SqlParser.Antlr;
 import FileWork.Metadata.ColumnMetadata;
 import SqlParser.QueriesStruct.Queries;
 import SqlParser.QueriesStruct.QueryInterface;
+import SqlParser.QueriesStruct.WhereCondition;
 import Yadro.DataStruct.DataType;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -58,6 +59,21 @@ class AntlrParserTest {
             assertEquals(2, q.columns().size());
             assertEquals(DataType.INTEGER, q.columns().get(0).getType());
             assertEquals("name", q.columns().get(1).getName());
+            assertNull(q.compositePrimaryKey());
+        }
+
+        @Test
+        void testCreateTableWithCompositePK() {
+            String sql = "CREATE TABLE orders (orderId INTEGER, productId INTEGER, qty INTEGER, PRIMARY KEY (orderId, productId))";
+            QueryInterface query = parse(sql);
+
+            assertInstanceOf(Queries.CreateTableQuery.class, query);
+            Queries.CreateTableQuery q = (Queries.CreateTableQuery) query;
+
+            assertEquals("orders", q.tableName());
+            assertEquals(3, q.columns().size());
+            assertNotNull(q.compositePrimaryKey());
+            assertEquals(List.of("orderId", "productId"), q.compositePrimaryKey());
         }
     }
 
@@ -87,8 +103,38 @@ class AntlrParserTest {
             assertEquals("users", q.tableName());
             assertEquals(List.of("name"), q.selectCols());
             assertFalse(q.isStar());
-            assertEquals("id", q.whereName());
-            assertEquals("10", q.whereValue());
+
+            assertInstanceOf(WhereCondition.Simple.class, q.where());
+            WhereCondition.Simple where = (WhereCondition.Simple) q.where();
+            assertEquals("id", where.column());
+            assertEquals("=", where.op());
+            assertEquals("10", where.value());
+        }
+
+        @Test
+        void testSelectWithAndWhere() {
+            String sql = "SELECT name FROM users WHERE age > 18 AND age < 65";
+            QueryInterface query = parse(sql);
+
+            assertInstanceOf(Queries.SelectDataQuery.class, query);
+            Queries.SelectDataQuery q = (Queries.SelectDataQuery) query;
+
+            assertInstanceOf(WhereCondition.And.class, q.where());
+            WhereCondition.And and = (WhereCondition.And) q.where();
+            assertEquals(2, and.operands().size());
+        }
+
+        @Test
+        void testSelectWithOrWhere() {
+            String sql = "SELECT name FROM users WHERE id = 1 OR id = 2";
+            QueryInterface query = parse(sql);
+
+            assertInstanceOf(Queries.SelectDataQuery.class, query);
+            Queries.SelectDataQuery q = (Queries.SelectDataQuery) query;
+
+            assertInstanceOf(WhereCondition.Or.class, q.where());
+            WhereCondition.Or or = (WhereCondition.Or) q.where();
+            assertEquals(2, or.operands().size());
         }
 
         @Test
@@ -98,6 +144,59 @@ class AntlrParserTest {
 
             assertTrue(q.isStar());
             assertNull(q.selectCols());
+            assertNull(q.where());
+        }
+
+        @Test
+        void testSelectWithOrderByAsc() {
+            String sql = "SELECT name FROM users ORDER BY name ASC";
+            QueryInterface query = parse(sql);
+
+            assertInstanceOf(Queries.SelectDataQuery.class, query);
+            Queries.SelectDataQuery q = (Queries.SelectDataQuery) query;
+
+            assertEquals("name", q.orderByCol());
+            assertTrue(q.orderByAsc());
+        }
+
+        @Test
+        void testSelectWithOrderByDesc() {
+            String sql = "SELECT id FROM users ORDER BY id DESC";
+            QueryInterface query = parse(sql);
+
+            Queries.SelectDataQuery q = (Queries.SelectDataQuery) query;
+            assertEquals("id", q.orderByCol());
+            assertFalse(q.orderByAsc());
+        }
+
+        @Test
+        void testSelectGroupBy() {
+            String sql = "SELECT dept, COUNT(*) FROM employees GROUP BY dept";
+            QueryInterface query = parse(sql);
+
+            assertInstanceOf(Queries.GroupBySelectQuery.class, query);
+            Queries.GroupBySelectQuery q = (Queries.GroupBySelectQuery) query;
+
+            assertEquals("employees", q.tableName());
+            assertEquals("dept", q.groupByCol());
+            assertEquals("COUNT", q.aggFunc());
+            assertNull(q.aggCol());
+        }
+
+        @Test
+        void testSelectGroupByWithHaving() {
+            String sql = "SELECT dept, COUNT(*) FROM employees GROUP BY dept HAVING COUNT(*) > 2";
+            QueryInterface query = parse(sql);
+
+            assertInstanceOf(Queries.GroupBySelectQuery.class, query);
+            Queries.GroupBySelectQuery q = (Queries.GroupBySelectQuery) query;
+
+            assertNotNull(q.having());
+            assertInstanceOf(WhereCondition.Simple.class, q.having());
+            WhereCondition.Simple having = (WhereCondition.Simple) q.having();
+            assertEquals("COUNT", having.column());
+            assertEquals(">", having.op());
+            assertEquals("2", having.value());
         }
     }
 

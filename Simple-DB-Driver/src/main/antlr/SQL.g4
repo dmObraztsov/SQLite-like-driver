@@ -20,7 +20,7 @@ createDBStatement : CREATE DATABASE ifNotExists? identifier;
 dropDBStatement : DROP DATABASE identifier;
 useDBStatement : USE DATABASE identifier;
 
-createTableStatement : CREATE TABLE ifNotExists? identifier LPAREN columnDef (COMMA columnDef)* RPAREN;
+createTableStatement : CREATE TABLE ifNotExists? identifier LPAREN columnDef (COMMA columnDef)* (COMMA tablePkConstraint)? RPAREN;
 
 dropTableStatement : DROP TABLE identifier;
 
@@ -42,19 +42,22 @@ insertTableStatement :
     INSERT INTO identifier (LPAREN identifier (COMMA identifier)* RPAREN)?
     VALUES LPAREN literal (COMMA literal)* RPAREN;
 
-selectStatement : SELECT DISTINCT? selectCols FROM tablename joinClause* whereClause?;
+selectStatement : SELECT DISTINCT? selectCols FROM tablename joinClause* whereClause? groupByClause? orderByClause?;
 
 deleteStatement : DELETE FROM tablename whereClause?;
 updateStatement : UPDATE tablename SET updateAssignment (COMMA updateAssignment)* whereClause?;
 aggregateFunc: funcName LPAREN (STAR | columnRef) RPAREN;
 
-selectCols : DISTINCT? (STAR
-                        | aggregateFunc (COMMA aggregateFunc)?
-                        | columnRef (COMMA columnRef)*);
+selectCols : DISTINCT? (STAR | selectCol (COMMA selectCol)*);
+selectCol  : aggregateFunc | columnRef;
 
 joinClause : JOIN tablename ON condition;
 whereClause : WHERE condition;
+groupByClause : GROUP BY columnRef (HAVING condition)?;
+orderByClause : ORDER BY columnRef (ASC | DESC)?;
 distinctClause : DISTINCT;
+
+tablePkConstraint : PRIMARY KEY LPAREN identifier (COMMA identifier)* RPAREN;
 
 condition : orCondition;
 orCondition : andCondition (OR andCondition)*;
@@ -67,6 +70,7 @@ predicate
 operand
     : columnRef
     | literal
+    | aggregateFunc
     ;
 
 comparisonOperator
@@ -151,9 +155,15 @@ FROM         : [fF] [rR] [oO] [mM];
 WHERE        : [wW] [hH] [eE] [rR] [eE];
 JOIN         : [jJ] [oO] [iI] [nN];
 DELETE       : [dD] [eE] [lL] [eE] [tT] [eE];
-UPDATE : [uU] [pP] [dD] [aA] [tT] [eE];
-SET : [sS] [eE] [tT];
+UPDATE       : [uU] [pP] [dD] [aA] [tT] [eE];
+SET          : [sS] [eE] [tT];
 ON           : [oO] [nN];
+ORDER        : [oO] [rR] [dD] [eE] [rR];
+GROUP        : [gG] [rR] [oO] [uU] [pP];
+BY           : [bB] [yY];
+HAVING       : [hH] [aA] [vV] [iI] [nN] [gG];
+ASC          : [aA] [sS] [cC];
+DESC         : [dD] [eE] [sS] [cC];
 
 COUNT : [cC][oO][uU][nN][tT];
 SUM : [sS][uU][mM];

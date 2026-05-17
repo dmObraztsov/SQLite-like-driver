@@ -16,6 +16,7 @@ public class TableMetadata implements Serializable {
     private int countAutoIncrements;
     private int countDefaults;
     private ArrayList<String> columnNames = new ArrayList<>();
+    private ArrayList<String> compositePrimaryKey;
 
     public TableMetadata() {
     }
