@@ -71,7 +71,7 @@ class QueriesTest {
 
             ExecutionResult result = query.execute(engine);
 
-            verify(engine).createTable(TABLE_NAME, columns);
+            verify(engine).createTable(TABLE_NAME, columns, null);
             assertTrue(result.isSuccess());
         }
 
@@ -103,11 +103,12 @@ class QueriesTest {
 
         @Test
         void testSelectDataQuery() throws Exception {
+            WhereCondition where = new WhereCondition.Simple("id", "=", "1");
             List<Row> mockRows = List.of(new Row(Map.of("id", "1")));
-            when(engine.select(TABLE_NAME, List.of("id"), false, "id", "=", "1", false))
+            when(engine.select(TABLE_NAME, List.of("id"), false, where, false, null, true))
                     .thenReturn(mockRows);
 
-            var query = new Queries.SelectDataQuery(List.of("id"), false, TABLE_NAME, "id", "=", "1", false);
+            var query = new Queries.SelectDataQuery(List.of("id"), false, TABLE_NAME, where, false, null, true);
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.isSuccess());
@@ -193,9 +194,10 @@ class QueriesTest {
 
         @Test
         void testDeleteRowsFound() throws Exception {
-            when(engine.delete(TABLE_NAME, "id", "=", "1")).thenReturn(5);
+            WhereCondition where = new WhereCondition.Simple("id", "=", "1");
+            when(engine.delete(TABLE_NAME, where)).thenReturn(5);
 
-            var query = new Queries.DeleteTableQuery(TABLE_NAME, "id", "=", "1");
+            var query = new Queries.DeleteTableQuery(TABLE_NAME, where);
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.isSuccess());
@@ -204,9 +206,10 @@ class QueriesTest {
 
         @Test
         void testDeleteNoRowsFound() throws Exception {
-            when(engine.delete(TABLE_NAME, "id", "=", "1")).thenReturn(0);
+            WhereCondition where = new WhereCondition.Simple("id", "=", "1");
+            when(engine.delete(TABLE_NAME, where)).thenReturn(0);
 
-            var query = new Queries.DeleteTableQuery(TABLE_NAME, "id", "=", "1");
+            var query = new Queries.DeleteTableQuery(TABLE_NAME, where);
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.isSuccess());
@@ -216,9 +219,10 @@ class QueriesTest {
         @Test
         void testUpdateRowsFound() throws Exception {
             Map<String, String> values = Map.of("name", "Oleg");
-            when(engine.update(TABLE_NAME, values, "id", "=", "1")).thenReturn(2);
+            WhereCondition where = new WhereCondition.Simple("id", "=", "1");
+            when(engine.update(TABLE_NAME, values, where)).thenReturn(2);
 
-            var query = new Queries.UpdateTableQuery(TABLE_NAME, values, "id", "=", "1");
+            var query = new Queries.UpdateTableQuery(TABLE_NAME, values, where);
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.isSuccess());
@@ -228,9 +232,10 @@ class QueriesTest {
         @Test
         void testUpdateNoRowsFound() throws Exception {
             Map<String, String> values = Map.of("name", "Oleg");
-            when(engine.update(TABLE_NAME, values, "id", "=", "1")).thenReturn(0);
+            WhereCondition where = new WhereCondition.Simple("id", "=", "1");
+            when(engine.update(TABLE_NAME, values, where)).thenReturn(0);
 
-            var query = new Queries.UpdateTableQuery(TABLE_NAME, values, "id", "=", "1");
+            var query = new Queries.UpdateTableQuery(TABLE_NAME, values, where);
             ExecutionResult result = query.execute(engine);
 
             assertTrue(result.getMessage().contains("No matching rows found"));
