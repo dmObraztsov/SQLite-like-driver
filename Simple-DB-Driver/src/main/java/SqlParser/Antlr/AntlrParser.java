@@ -294,6 +294,18 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             return parseCondition(ctx.condition());
         }
 
+        if (ctx.LIKE() != null) {
+            SQLParser.OperandContext left = ctx.operand(0);
+            SQLParser.OperandContext right = ctx.operand(1);
+            String columnName = left.columnRef() != null
+                    ? toUnqualifiedColumnName(left.columnRef())
+                    : left.getText();
+            String pattern = right.literal() != null
+                    ? getCleanLiteral(right.literal())
+                    : right.getText();
+            return new WhereCondition.Simple(columnName, "LIKE", pattern);
+        }
+
         SQLParser.OperandContext left = ctx.operand(0);
         SQLParser.OperandContext right = ctx.operand(1);
         String op = extractOperator(ctx.comparisonOperator());
@@ -391,10 +403,13 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     }
 
     private DataType parseDataType(SQLParser.DataTypeContext ctx) {
-        if (ctx.INTEGER() != null) return DataType.INTEGER;
-        if (ctx.REAL() != null)    return DataType.REAL;
-        if (ctx.TEXT() != null)    return DataType.TEXT;
-        if (ctx.BLOB() != null)    return DataType.BLOB;
+        if (ctx.INTEGER() != null)  return DataType.INTEGER;
+        if (ctx.REAL() != null)     return DataType.REAL;
+        if (ctx.TEXT() != null)     return DataType.TEXT;
+        if (ctx.BLOB() != null)     return DataType.BLOB;
+        if (ctx.VARCHAR() != null)  return DataType.TEXT;
+        if (ctx.DATE() != null)     return DataType.TEXT;
+        if (ctx.DATETIME() != null) return DataType.TEXT;
         throw new IllegalArgumentException("Unsupported data type: " + ctx.getText());
     }
 

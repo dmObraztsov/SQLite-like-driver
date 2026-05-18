@@ -222,18 +222,41 @@ public class SimpleResultSet implements ResultSet {
     @Override public byte[] getBytes(int columnIndex) throws SQLException { String v = rawValue(columnIndex); return v == null ? null : v.getBytes(); }
     @Override public byte[] getBytes(String columnLabel) throws SQLException { return getBytes(requireIdx(columnLabel)); }
 
-    @Override public java.sql.Date getDate(int columnIndex) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public java.sql.Date getDate(String columnLabel) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public java.sql.Date getDate(int columnIndex, Calendar cal) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public java.sql.Date getDate(String columnLabel, Calendar cal) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public Time getTime(int columnIndex) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public Time getTime(String columnLabel) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public Time getTime(int columnIndex, Calendar cal) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public Time getTime(String columnLabel, Calendar cal) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public Timestamp getTimestamp(int columnIndex) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public Timestamp getTimestamp(String columnLabel) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public Timestamp getTimestamp(int columnIndex, Calendar cal) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public Timestamp getTimestamp(String columnLabel, Calendar cal) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override
+    public java.sql.Date getDate(int columnIndex) throws SQLException {
+        String v = rawValue(columnIndex);
+        if (v == null) return null;
+        try { return java.sql.Date.valueOf(v.trim()); }
+        catch (IllegalArgumentException e) { throw new SQLDataException("Cannot parse date: " + v); }
+    }
+    @Override public java.sql.Date getDate(String columnLabel) throws SQLException { return getDate(requireIdx(columnLabel)); }
+    @Override public java.sql.Date getDate(int columnIndex, Calendar cal) throws SQLException { return getDate(columnIndex); }
+    @Override public java.sql.Date getDate(String columnLabel, Calendar cal) throws SQLException { return getDate(columnLabel); }
+
+    @Override
+    public Time getTime(int columnIndex) throws SQLException {
+        String v = rawValue(columnIndex);
+        if (v == null) return null;
+        try { return Time.valueOf(v.trim()); }
+        catch (IllegalArgumentException e) { throw new SQLDataException("Cannot parse time: " + v); }
+    }
+    @Override public Time getTime(String columnLabel) throws SQLException { return getTime(requireIdx(columnLabel)); }
+    @Override public Time getTime(int columnIndex, Calendar cal) throws SQLException { return getTime(columnIndex); }
+    @Override public Time getTime(String columnLabel, Calendar cal) throws SQLException { return getTime(columnLabel); }
+
+    @Override
+    public Timestamp getTimestamp(int columnIndex) throws SQLException {
+        String v = rawValue(columnIndex);
+        if (v == null) return null;
+        try { return Timestamp.valueOf(v.trim()); }
+        catch (IllegalArgumentException e) {
+            try { return Timestamp.valueOf(v.trim() + " 00:00:00"); }
+            catch (IllegalArgumentException e2) { throw new SQLDataException("Cannot parse timestamp: " + v); }
+        }
+    }
+    @Override public Timestamp getTimestamp(String columnLabel) throws SQLException { return getTimestamp(requireIdx(columnLabel)); }
+    @Override public Timestamp getTimestamp(int columnIndex, Calendar cal) throws SQLException { return getTimestamp(columnIndex); }
+    @Override public Timestamp getTimestamp(String columnLabel, Calendar cal) throws SQLException { return getTimestamp(columnLabel); }
 
     @Override public InputStream getAsciiStream(int columnIndex) throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public InputStream getAsciiStream(String columnLabel) throws SQLException { throw new SQLFeatureNotSupportedException(); }

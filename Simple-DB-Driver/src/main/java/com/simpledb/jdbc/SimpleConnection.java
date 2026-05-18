@@ -174,7 +174,8 @@ public class SimpleConnection implements Connection {
 
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
-        throw new SQLFeatureNotSupportedException("DatabaseMetaData не реализован");
+        checkClosed();
+        return new SimpleDatabaseMetaData(this, "jdbc:simpledb:" + dbName);
     }
 
     @Override
@@ -205,7 +206,8 @@ public class SimpleConnection implements Connection {
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
-        throw new SQLFeatureNotSupportedException("PreparedStatement не реализован — используйте Statement");
+        checkClosed();
+        return new SimplePreparedStatement(this, sql);
     }
 
     @Override public PreparedStatement prepareStatement(String sql, int a, int b) throws SQLException { return prepareStatement(sql); }

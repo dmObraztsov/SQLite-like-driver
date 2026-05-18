@@ -65,6 +65,7 @@ andCondition : predicate (AND predicate)*;
 predicate
     : LPAREN condition RPAREN
     | operand comparisonOperator operand
+    | operand LIKE operand
     ;
 
 operand
@@ -147,6 +148,9 @@ dataType
     | REAL
     | TEXT
     | BLOB
+    | VARCHAR (LPAREN NUMBER RPAREN)?
+    | DATE
+    | DATETIME
     ;
 
 SELECT       : [sS] [eE] [lL] [eE] [cC] [tT];
@@ -207,6 +211,10 @@ INTEGER     : [iI] [nN] [tT] [eE] [gG] [eE] [rR];
 REAL        : [rR] [eE] [aA] [lL];
 TEXT        : [tT] [eE] [xX] [tT];
 BLOB        : [bB] [lL] [oO] [bB];
+VARCHAR     : [vV] [aA] [rR] [cC] [hH] [aA] [rR];
+DATE        : [dD] [aA] [tT] [eE];
+DATETIME    : [dD] [aA] [tT] [eE] [tT] [iI] [mM] [eE];
+LIKE        : [lL] [iI] [kK] [eE];
 
 EQ  : '=';
 NE  : '!=' | '<>';
@@ -222,6 +230,8 @@ LPAREN : '(';
 RPAREN : ')';
 
 NAME   : [a-zA-Z_][a-zA-Z_0-9]*;
-STRING : '"' (~["\\] | '\\' .)* '"';
+STRING : '"' (~["\\] | '\\' .)* '"'
+       | '\'' (~['\\] | '\\' .)* '\''
+       ;
 NUMBER : [0-9]+ ('.' [0-9]+)?;
 WS     : [ \t\r\n]+ -> skip;
