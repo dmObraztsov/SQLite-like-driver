@@ -108,11 +108,14 @@ public class SimplePreparedStatement implements PreparedStatement {
     private void appendParam(StringBuilder sb, Object val) {
         if (val == null) {
             sb.append("NULL");
-        } else if (val instanceof Long n) {
-            sb.append(n);
+        } else if (val instanceof Float f) {
+            if (f == Math.floor(f) && !Float.isInfinite(f)) sb.append((long) (float) f);
+            else sb.append(f);
         } else if (val instanceof Double d) {
             if (d == Math.floor(d) && !Double.isInfinite(d)) sb.append((long) (double) d);
             else sb.append(d);
+        } else if (val instanceof Number n) {
+            sb.append(n.longValue());
         } else {
             String s = val.toString();
             sb.append('"').append(s.replace("\\", "\\\\").replace("\"", "\\\"")).append('"');

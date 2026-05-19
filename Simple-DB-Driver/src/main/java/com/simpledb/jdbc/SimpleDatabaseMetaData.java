@@ -1,9 +1,16 @@
 package com.simpledb.jdbc;
 
+import FileWork.Metadata.ColumnMetadata;
 import SqlParser.QueriesStruct.ExecutionResult;
+import Yadro.DataStruct.Constraints;
+import Yadro.DataStruct.DataType;
+import Yadro.DataStruct.Row;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Минимальная реализация DatabaseMetaData.
@@ -190,12 +197,105 @@ public class SimpleDatabaseMetaData implements DatabaseMetaData {
 
     @Override public ResultSet getProcedures(String c, String s, String p)          throws SQLException { return emptyRs(); }
     @Override public ResultSet getProcedureColumns(String c, String s, String p, String col) throws SQLException { return emptyRs(); }
-    @Override public ResultSet getTables(String c, String s, String t, String[] types) throws SQLException { return emptyRs(); }
+    @Override
+    public ResultSet getTables(String c, String s, String tablePattern, String[] types) throws SQLException {
+        try {
+            List<String> tables = conn.getEngine().listTables();
+            List<Row> rows = new ArrayList<>();
+            for (String tbl : tables) {
+                if (tablePattern != null && !tablePattern.isEmpty() && !tablePattern.equals("%")
+                        && !tbl.equalsIgnoreCase(tablePattern)) continue;
+                Map<String, String> vals = new LinkedHashMap<>();
+                vals.put("TABLE_CAT",  null);
+                vals.put("TABLE_SCHEM", null);
+                vals.put("TABLE_NAME", tbl);
+                vals.put("TABLE_TYPE", "TABLE");
+                vals.put("REMARKS", null);
+                vals.put("TYPE_CAT", null);
+                vals.put("TYPE_SCHEM", null);
+                vals.put("TYPE_NAME", null);
+                vals.put("SELF_REFERENCING_COL_NAME", null);
+                vals.put("REF_GENERATION", null);
+                rows.add(new Row(vals));
+            }
+            return new SimpleResultSet(new ExecutionResult(true, "", rows), null);
+        } catch (Exception e) {
+            throw new SQLException("Failed to list tables: " + e.getMessage(), e);
+        }
+    }
+
     @Override public ResultSet getSchemas()                                          throws SQLException { return emptyRs(); }
     @Override public ResultSet getSchemas(String catalog, String schemaPattern)      throws SQLException { return emptyRs(); }
     @Override public ResultSet getCatalogs()                                         throws SQLException { return emptyRs(); }
-    @Override public ResultSet getTableTypes()                                       throws SQLException { return emptyRs(); }
-    @Override public ResultSet getColumns(String c, String s, String t, String col) throws SQLException { return emptyRs(); }
+
+    @Override
+    public ResultSet getTableTypes() throws SQLException {
+        Map<String, String> vals = new LinkedHashMap<>();
+        vals.put("TABLE_TYPE", "TABLE");
+        return new SimpleResultSet(new ExecutionResult(true, "", List.of(new Row(vals))), null);
+    }
+
+    @Override
+    public ResultSet getColumns(String c, String s, String tablePattern, String colPattern) throws SQLException {
+        try {
+            List<Row> rows = new ArrayList<>();
+            List<String> tables = conn.getEngine().listTables();
+            for (String tbl : tables) {
+                if (tablePattern != null && !tablePattern.isEmpty() && !tablePattern.equals("%")
+                        && !tbl.equalsIgnoreCase(tablePattern)) continue;
+                List<ColumnMetadata> cols = conn.getEngine().getColumnsMetadata(tbl);
+                for (int i = 0; i < cols.size(); i++) {
+                    ColumnMetadata meta = cols.get(i);
+                    if (colPattern != null && !colPattern.isEmpty() && !colPattern.equals("%")
+                            && !meta.getName().equalsIgnoreCase(colPattern)) continue;
+                    boolean isAutoInc = meta.getConstraints().contains(Constraints.AUTOINCREMENT);
+                    boolean notNull   = meta.getConstraints().contains(Constraints.NOT_NULL)
+                                     || meta.getConstraints().contains(Constraints.PRIMARY_KEY);
+                    Map<String, String> vals = new LinkedHashMap<>();
+                    vals.put("TABLE_CAT",          null);
+                    vals.put("TABLE_SCHEM",        null);
+                    vals.put("TABLE_NAME",         tbl);
+                    vals.put("COLUMN_NAME",        meta.getName());
+                    vals.put("DATA_TYPE",          String.valueOf(toJdbcType(meta.getType())));
+                    vals.put("TYPE_NAME",          meta.getType() != null ? meta.getType().getSqlType() : "TEXT");
+                    vals.put("COLUMN_SIZE",        "255");
+                    vals.put("BUFFER_LENGTH",      null);
+                    vals.put("DECIMAL_DIGITS",     null);
+                    vals.put("NUM_PREC_RADIX",     "10");
+                    vals.put("NULLABLE",           notNull ? String.valueOf(DatabaseMetaData.columnNoNulls)
+                                                           : String.valueOf(DatabaseMetaData.columnNullable));
+                    vals.put("REMARKS",            null);
+                    vals.put("COLUMN_DEF",         meta.getDefaultValue());
+                    vals.put("SQL_DATA_TYPE",      null);
+                    vals.put("SQL_DATETIME_SUB",   null);
+                    vals.put("CHAR_OCTET_LENGTH",  "255");
+                    vals.put("ORDINAL_POSITION",   String.valueOf(i + 1));
+                    vals.put("IS_NULLABLE",        notNull ? "NO" : "YES");
+                    vals.put("SCOPE_CATALOG",      null);
+                    vals.put("SCOPE_SCHEMA",       null);
+                    vals.put("SCOPE_TABLE",        null);
+                    vals.put("SOURCE_DATA_TYPE",   null);
+                    vals.put("IS_AUTOINCREMENT",   isAutoInc ? "YES" : "NO");
+                    vals.put("IS_GENERATEDCOLUMN", isAutoInc ? "YES" : "NO");
+                    rows.add(new Row(vals));
+                }
+            }
+            return new SimpleResultSet(new ExecutionResult(true, "", rows), null);
+        } catch (Exception e) {
+            throw new SQLException("Failed to get columns: " + e.getMessage(), e);
+        }
+    }
+
+    private static int toJdbcType(DataType type) {
+        if (type == null) return Types.VARCHAR;
+        return switch (type) {
+            case INTEGER -> Types.INTEGER;
+            case REAL    -> Types.DOUBLE;
+            case BLOB    -> Types.BLOB;
+            case NULL    -> Types.NULL;
+            default      -> Types.VARCHAR;
+        };
+    }
     @Override public ResultSet getColumnPrivileges(String c, String s, String t, String col) throws SQLException { return emptyRs(); }
     @Override public ResultSet getTablePrivileges(String c, String s, String t)     throws SQLException { return emptyRs(); }
     @Override public ResultSet getBestRowIdentifier(String c, String s, String t, int scope, boolean nullable) throws SQLException { return emptyRs(); }

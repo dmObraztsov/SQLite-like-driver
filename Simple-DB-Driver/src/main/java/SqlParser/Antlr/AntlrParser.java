@@ -95,11 +95,22 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
         WhereCondition where = extractWhere(ctx.whereClause());
 
-        String orderByCol = null;
-        boolean orderByAsc = true;
+        List<Queries.OrderByItem> orderBy = new ArrayList<>();
         if (ctx.orderByClause() != null) {
-            orderByCol = toUnqualifiedColumnName(ctx.orderByClause().columnRef());
-            orderByAsc = ctx.orderByClause().DESC() == null;
+            for (SQLParser.OrderByItemContext item : ctx.orderByClause().orderByItem()) {
+                String col = toUnqualifiedColumnName(item.columnRef());
+                boolean asc = item.DESC() == null;
+                orderBy.add(new Queries.OrderByItem(col, asc));
+            }
+        }
+
+        int limit = -1;
+        int offset = 0;
+        if (ctx.limitClause() != null) {
+            limit = Integer.parseInt(ctx.limitClause().NUMBER(0).getText());
+            if (ctx.limitClause().NUMBER().size() > 1) {
+                offset = Integer.parseInt(ctx.limitClause().NUMBER(1).getText());
+            }
         }
 
         String groupByCol = null;
@@ -128,7 +139,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
             return new Queries.GroupBySelectQuery(
                     baseTable, groupByCol, funcName, aggCol,
-                    where, having, extraCols, orderByCol, orderByAsc
+                    where, having, extraCols, orderBy, limit, offset
             );
         }
 
@@ -155,8 +166,10 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                 throw new IllegalArgumentException("Only one JOIN is supported right now");
             }
 
-            SQLParser.JoinClauseContext joinClause = ctx.joinClause(0);
-            SimpleJoin join = extractSimpleJoin(joinClause);
+            SQLParser.JoinClauseContext joinClauseCtx = ctx.joinClause(0);
+            SimpleJoin join = extractSimpleJoin(joinClauseCtx);
+            boolean isLeftJoin = joinClauseCtx.joinType() != null
+                    && joinClauseCtx.joinType().LEFT() != null;
 
             List<String> leftColumns = new ArrayList<>();
             List<String> rightColumns = new ArrayList<>();
@@ -181,7 +194,8 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             return new Queries.JoinTableQuery(
                     baseTable, leftColumns.isEmpty() ? null : leftColumns,
                     join.rightTableName(), rightColumns.isEmpty() ? null : rightColumns,
-                    join.leftColumnName(), join.rightColumnName(), isDistinct
+                    join.leftColumnName(), join.rightColumnName(), isDistinct, where,
+                    isLeftJoin, limit, offset
             );
         }
 
@@ -190,7 +204,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                 .toList();
 
         return new Queries.SelectDataQuery(
-                columns, isStar, baseTable, where, isDistinct, orderByCol, orderByAsc
+                columns, isStar, baseTable, where, isDistinct, orderBy, limit, offset
         );
     }
 

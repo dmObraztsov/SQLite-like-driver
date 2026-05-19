@@ -43,4 +43,4 @@ bin/
 
 ### Test runtime artifacts ###
 test_e2e_db/
-database/src/main/data/
+src/main/data/

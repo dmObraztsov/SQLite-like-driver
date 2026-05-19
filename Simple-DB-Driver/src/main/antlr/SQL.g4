@@ -42,7 +42,7 @@ insertTableStatement :
     INSERT INTO identifier (LPAREN identifier (COMMA identifier)* RPAREN)?
     VALUES LPAREN literal (COMMA literal)* RPAREN;
 
-selectStatement : SELECT DISTINCT? selectCols FROM tablename joinClause* whereClause? groupByClause? orderByClause?;
+selectStatement : SELECT DISTINCT? selectCols FROM tablename joinClause* whereClause? groupByClause? orderByClause? limitClause?;
 
 deleteStatement : DELETE FROM tablename whereClause?;
 updateStatement : UPDATE tablename SET updateAssignment (COMMA updateAssignment)* whereClause?;
@@ -51,10 +51,13 @@ aggregateFunc: funcName LPAREN (STAR | columnRef) RPAREN;
 selectCols : DISTINCT? (STAR | selectCol (COMMA selectCol)*);
 selectCol  : aggregateFunc | columnRef;
 
-joinClause : JOIN tablename ON condition;
+joinClause : joinType? JOIN tablename ON condition;
+joinType : LEFT | INNER;
+limitClause : LIMIT NUMBER (OFFSET NUMBER)?;
 whereClause : WHERE condition;
 groupByClause : GROUP BY columnRef (HAVING condition)?;
-orderByClause : ORDER BY columnRef (ASC | DESC)?;
+orderByClause : ORDER BY orderByItem (COMMA orderByItem)*;
+orderByItem   : columnRef (ASC | DESC)?;
 distinctClause : DISTINCT;
 
 tablePkConstraint : PRIMARY KEY LPAREN identifier (COMMA identifier)* RPAREN;
@@ -215,6 +218,10 @@ VARCHAR     : [vV] [aA] [rR] [cC] [hH] [aA] [rR];
 DATE        : [dD] [aA] [tT] [eE];
 DATETIME    : [dD] [aA] [tT] [eE] [tT] [iI] [mM] [eE];
 LIKE        : [lL] [iI] [kK] [eE];
+LEFT        : [lL] [eE] [fF] [tT];
+INNER       : [iI] [nN] [nN] [eE] [rR];
+LIMIT       : [lL] [iI] [mM] [iI] [tT];
+OFFSET      : [oO] [fF] [fF] [sS] [eE] [tT];
 
 EQ  : '=';
 NE  : '!=' | '<>';
