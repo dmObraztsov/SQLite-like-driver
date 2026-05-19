@@ -23,7 +23,8 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
     @Override
     public QueryInterface visitCreateDBStatement(SQLParser.CreateDBStatementContext ctx) {
-        return new Queries.CreateDataBaseQuery(ctx.identifier().getText());
+        boolean ifNotExists = ctx.ifNotExists() != null;
+        return new Queries.CreateDataBaseQuery(ctx.identifier().getText(), ifNotExists);
     }
 
     @Override

@@ -13,10 +13,15 @@ public class Queries {
     public record OrderByItem(String col, boolean asc) {}
 
 
-    public record CreateDataBaseQuery(String databaseName) implements QueryInterface {
+    public record CreateDataBaseQuery(String databaseName, boolean ifNotExists) implements QueryInterface {
+        public CreateDataBaseQuery(String databaseName) { this(databaseName, false); }
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
-            engine.createDatabase(databaseName);
+            try {
+                engine.createDatabase(databaseName);
+            } catch (Exception e) {
+                if (!ifNotExists) throw e;
+            }
             return new ExecutionResult(true, "Database '" + databaseName + "' created.");
         }
     }

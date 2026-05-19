@@ -1,0 +1,17 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.simpledb:simple-db-driver:1.0-SNAPSHOT'
+}
+
+application {
+    mainClass = 'Main'
+}
