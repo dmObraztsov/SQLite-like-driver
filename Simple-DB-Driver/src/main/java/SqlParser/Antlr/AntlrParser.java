@@ -332,6 +332,28 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             return parseCondition(ctx.condition());
         }
 
+        if (ctx.IS() != null) {
+            String col = toUnqualifiedColumnName(ctx.columnRef());
+            boolean isNull = ctx.NOT() == null;
+            return new WhereCondition.IsNull(col, isNull);
+        }
+
+        if (ctx.IN() != null) {
+            String col = toUnqualifiedColumnName(ctx.columnRef());
+            boolean negated = ctx.NOT() != null;
+            List<String> vals = ctx.literal().stream()
+                    .map(this::getCleanLiteral)
+                    .collect(java.util.stream.Collectors.toList());
+            return new WhereCondition.In(col, vals, negated);
+        }
+
+        if (ctx.BETWEEN() != null) {
+            String col = toUnqualifiedColumnName(ctx.columnRef());
+            String low  = getOperandValue(ctx.operand(0));
+            String high = getOperandValue(ctx.operand(1));
+            return new WhereCondition.Between(col, low, high);
+        }
+
         if (ctx.LIKE() != null) {
             SQLParser.OperandContext left = ctx.operand(0);
             SQLParser.OperandContext right = ctx.operand(1);
@@ -369,6 +391,12 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         return new WhereCondition.Simple(columnName, op, value);
+    }
+
+    private String getOperandValue(SQLParser.OperandContext op) {
+        if (op.literal() != null) return getCleanLiteral(op.literal());
+        if (op.columnRef() != null) return toUnqualifiedColumnName(op.columnRef());
+        return op.getText();
     }
 
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {

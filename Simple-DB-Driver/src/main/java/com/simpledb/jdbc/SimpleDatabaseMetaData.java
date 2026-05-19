@@ -69,14 +69,14 @@ public class SimpleDatabaseMetaData implements DatabaseMetaData {
     @Override public boolean supportsSubqueriesInIns()               { return false; }
     @Override public boolean supportsSubqueriesInQuantifieds()       { return false; }
     @Override public boolean supportsCorrelatedSubqueries()          { return false; }
-    @Override public boolean supportsOuterJoins()                    { return false; }
+    @Override public boolean supportsOuterJoins()                    { return true; }
     @Override public boolean supportsFullOuterJoins()                { return false; }
-    @Override public boolean supportsLimitedOuterJoins()             { return false; }
+    @Override public boolean supportsLimitedOuterJoins()             { return true; }
     @Override public boolean supportsOrderByUnrelated()              { return true; }
     @Override public boolean supportsGroupBy()                       { return true; }
     @Override public boolean supportsGroupByBeyondSelect()           { return true; }
     @Override public boolean supportsGroupByUnrelated()              { return true; }
-    @Override public boolean supportsColumnAliasing()                { return false; }
+    @Override public boolean supportsColumnAliasing()                { return true; }
     @Override public boolean supportsExpressionsInOrderBy()          { return false; }
     @Override public boolean supportsNonNullableColumns()            { return true; }
     @Override public boolean supportsAlterTableWithAddColumn()       { return true; }
@@ -300,7 +300,35 @@ public class SimpleDatabaseMetaData implements DatabaseMetaData {
     @Override public ResultSet getTablePrivileges(String c, String s, String t)     throws SQLException { return emptyRs(); }
     @Override public ResultSet getBestRowIdentifier(String c, String s, String t, int scope, boolean nullable) throws SQLException { return emptyRs(); }
     @Override public ResultSet getVersionColumns(String c, String s, String t)      throws SQLException { return emptyRs(); }
-    @Override public ResultSet getPrimaryKeys(String c, String s, String t)         throws SQLException { return emptyRs(); }
+    @Override
+    public ResultSet getPrimaryKeys(String catalog, String schema, String table) throws SQLException {
+        try {
+            List<Row> rows = new ArrayList<>();
+            List<String> tables = (table != null && !table.isEmpty())
+                    ? List.of(table) : conn.getEngine().listTables();
+            for (String tbl : tables) {
+                try {
+                    List<ColumnMetadata> cols = conn.getEngine().getColumnsMetadata(tbl);
+                    int keySeq = 1;
+                    for (ColumnMetadata meta : cols) {
+                        if (meta.getConstraints().contains(Constraints.PRIMARY_KEY)) {
+                            Map<String, String> vals = new LinkedHashMap<>();
+                            vals.put("TABLE_CAT",   null);
+                            vals.put("TABLE_SCHEM", null);
+                            vals.put("TABLE_NAME",  tbl);
+                            vals.put("COLUMN_NAME", meta.getName());
+                            vals.put("KEY_SEQ",     String.valueOf(keySeq++));
+                            vals.put("PK_NAME",     null);
+                            rows.add(new Row(vals));
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            return new SimpleResultSet(new ExecutionResult(true, "", rows), null);
+        } catch (Exception e) {
+            throw new SQLException("Failed to get primary keys: " + e.getMessage(), e);
+        }
+    }
     @Override public ResultSet getImportedKeys(String c, String s, String t)        throws SQLException { return emptyRs(); }
     @Override public ResultSet getExportedKeys(String c, String s, String t)        throws SQLException { return emptyRs(); }
     @Override public ResultSet getCrossReference(String pc, String ps, String pt, String fc, String fs, String ft) throws SQLException { return emptyRs(); }

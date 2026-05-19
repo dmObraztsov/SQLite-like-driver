@@ -38,7 +38,7 @@ public class SimpleStatement implements Statement {
         checkClosed();
         ExecutionResult result = run(sql);
         if (isSelectLike(sql)) {
-            currentResultSet = new SimpleResultSet(result, this);
+            currentResultSet = new SimpleResultSet(applyMaxRows(result), this);
             updateCount = -1;
             return true;
         } else {
@@ -55,7 +55,7 @@ public class SimpleStatement implements Statement {
             throw new SQLException("executeQuery ожидает SELECT-подобный запрос, получен: " + sql);
         }
         ExecutionResult result = run(sql);
-        currentResultSet = new SimpleResultSet(result, this);
+        currentResultSet = new SimpleResultSet(applyMaxRows(result), this);
         updateCount = -1;
         return currentResultSet;
     }
@@ -71,6 +71,13 @@ public class SimpleStatement implements Statement {
         updateCount = parseAffectedRows(result.getMessage());
         lastGeneratedKey = engine.getLastGeneratedKey();
         return updateCount;
+    }
+
+    private ExecutionResult applyMaxRows(ExecutionResult result) {
+        if (maxRows > 0 && result.getRows().size() > maxRows) {
+            result.setRows(new java.util.ArrayList<>(result.getRows().subList(0, maxRows)));
+        }
+        return result;
     }
 
     private ExecutionResult run(String sql) throws SQLException {

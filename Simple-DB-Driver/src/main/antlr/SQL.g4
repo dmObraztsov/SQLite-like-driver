@@ -70,6 +70,9 @@ predicate
     : LPAREN condition RPAREN
     | operand comparisonOperator operand
     | operand LIKE operand
+    | columnRef IS NOT? NULL
+    | columnRef NOT? IN LPAREN literal (COMMA literal)* RPAREN
+    | columnRef NOT? BETWEEN operand AND operand
     ;
 
 operand
@@ -219,6 +222,9 @@ VARCHAR     : [vV] [aA] [rR] [cC] [hH] [aA] [rR];
 DATE        : [dD] [aA] [tT] [eE];
 DATETIME    : [dD] [aA] [tT] [eE] [tT] [iI] [mM] [eE];
 LIKE        : [lL] [iI] [kK] [eE];
+IS          : [iI] [sS];
+IN          : [iI] [nN];
+BETWEEN     : [bB] [eE] [tT] [wW] [eE] [eE] [nN];
 LEFT        : [lL] [eE] [fF] [tT];
 INNER       : [iI] [nN] [nN] [eE] [rR];
 OUTER       : [oO] [uU] [tT] [eE] [rR];
@@ -239,7 +245,9 @@ COMMA  : ',';
 LPAREN : '(';
 RPAREN : ')';
 
-NAME   : [a-zA-Z_][a-zA-Z_0-9]*;
+NAME          : [a-zA-Z_][a-zA-Z_0-9]*;
+LINE_COMMENT  : '--' ~[\r\n]* -> skip;
+BLOCK_COMMENT : '/*' (~'*' | '*' ~'/')* '*/' -> skip;
 STRING : '"' (~["\\] | '\\' .)* '"'
        | '\'' (~['\\] | '\\' .)* '\''
        ;

@@ -51,7 +51,24 @@ public class SimpleResultSet implements ResultSet {
             nameToIdx.put(columnNames.get(i).toLowerCase(), i + 1);
         }
 
-        this.metaData = new SimpleResultSetMetaData(columnNames);
+        List<Integer> types = new ArrayList<>();
+        if (!this.rows.isEmpty()) {
+            Map<String, String> first = this.rows.get(0).getValuesMap();
+            for (String col : this.columnNames) {
+                types.add(inferJdbcType(first.get(col)));
+            }
+        }
+        this.metaData = new SimpleResultSetMetaData(columnNames, types);
+    }
+
+    private static int inferJdbcType(String val) {
+        if (val == null) return java.sql.Types.VARCHAR;
+        String v = val.trim();
+        try { Long.parseLong(v);   return java.sql.Types.BIGINT;    } catch (NumberFormatException ignored) {}
+        try { Double.parseDouble(v); return java.sql.Types.DOUBLE;  } catch (NumberFormatException ignored) {}
+        if (v.matches("\\d{4}-\\d{2}-\\d{2}"))              return java.sql.Types.DATE;
+        if (v.matches("\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:.*")) return java.sql.Types.TIMESTAMP;
+        return java.sql.Types.VARCHAR;
     }
 
     // навигация
