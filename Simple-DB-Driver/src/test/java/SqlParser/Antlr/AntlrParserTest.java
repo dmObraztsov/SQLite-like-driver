@@ -155,8 +155,9 @@ class AntlrParserTest {
             assertInstanceOf(Queries.SelectDataQuery.class, query);
             Queries.SelectDataQuery q = (Queries.SelectDataQuery) query;
 
-            assertEquals("name", q.orderByCol());
-            assertTrue(q.orderByAsc());
+            assertEquals(1, q.orderBy().size());
+            assertEquals("name", q.orderBy().get(0).col());
+            assertTrue(q.orderBy().get(0).asc());
         }
 
         @Test
@@ -165,8 +166,9 @@ class AntlrParserTest {
             QueryInterface query = parse(sql);
 
             Queries.SelectDataQuery q = (Queries.SelectDataQuery) query;
-            assertEquals("id", q.orderByCol());
-            assertFalse(q.orderByAsc());
+            assertEquals(1, q.orderBy().size());
+            assertEquals("id", q.orderBy().get(0).col());
+            assertFalse(q.orderBy().get(0).asc());
         }
 
         @Test

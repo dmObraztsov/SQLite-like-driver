@@ -110,6 +110,19 @@ public class FileManager {
         return fileStorage.exists(PathManager.getTablePath(nameDB, tableName));
     }
 
+    public List<String> listTables() {
+        String tablesDir = PathManager.getDatabasePath(nameDB) + "/tables";
+        File dir = new File(tablesDir);
+        List<String> tables = new ArrayList<>();
+        if (!dir.exists() || !dir.isDirectory()) return tables;
+        File[] files = dir.listFiles();
+        if (files == null) return tables;
+        for (File f : files) {
+            if (f.isDirectory()) tables.add(f.getName());
+        }
+        return tables;
+    }
+
     public void renameFile(String oldPath, String newPath) throws FileStorageException {
         fileStorage.renameFile(oldPath, newPath);
     }

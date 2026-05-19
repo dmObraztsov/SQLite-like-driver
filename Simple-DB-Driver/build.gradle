@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'antlr'
+    id 'maven-publish'
 }
 
 group = 'SqlParser.pars'
@@ -40,6 +41,17 @@ tasks.register('buildDependencies') {
 }
 
 compileJava.dependsOn generateGrammarSource
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId    = 'com.simpledb'
+            artifactId = 'simple-db-driver'
+            version    = '1.0-SNAPSHOT'
+            from components.java
+        }
+    }
+}
 
 test {
     useJUnitPlatform()

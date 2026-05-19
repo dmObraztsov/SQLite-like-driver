@@ -10,6 +10,7 @@ import Yadro.DataStruct.DataType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -55,7 +56,8 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
     @Override
     public QueryInterface visitDropTableStatement(SQLParser.DropTableStatementContext ctx) {
-        return new Queries.DropTableQuery(ctx.identifier().getText());
+        boolean ifExists = ctx.IF() != null;
+        return new Queries.DropTableQuery(ctx.identifier().getText(), ifExists);
     }
 
     @Override
@@ -94,12 +96,41 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                 .toList();
 
         WhereCondition where = extractWhere(ctx.whereClause());
+        boolean isJoin = !ctx.joinClause().isEmpty();
 
-        String orderByCol = null;
-        boolean orderByAsc = true;
+        // Build ORDER BY list (qualified for JOIN context to match engine row keys)
+        List<Queries.OrderByItem> orderBy = new ArrayList<>();
         if (ctx.orderByClause() != null) {
-            orderByCol = toUnqualifiedColumnName(ctx.orderByClause().columnRef());
-            orderByAsc = ctx.orderByClause().DESC() == null;
+            for (SQLParser.OrderByItemContext item : ctx.orderByClause().orderByItem()) {
+                String col = isJoin ? item.columnRef().getText() : toUnqualifiedColumnName(item.columnRef());
+                boolean asc = item.DESC() == null;
+                orderBy.add(new Queries.OrderByItem(col, asc));
+            }
+        }
+
+        // Build alias map: original key → alias name
+        // For JOIN: use full qualified ref as key (e.g. "visits.id")
+        // For non-JOIN: use unqualified ref as key (e.g. "id")
+        Map<String, String> aliases = new LinkedHashMap<>();
+        for (SQLParser.SelectColContext sc : selectColCtxs) {
+            if (sc.alias() != null) {
+                String key;
+                if (sc.columnRef() != null) {
+                    key = isJoin ? sc.columnRef().getText() : toUnqualifiedColumnName(sc.columnRef());
+                } else {
+                    key = sc.aggregateFunc().funcName().getText().toUpperCase();
+                }
+                aliases.put(key, sc.alias().identifier().getText());
+            }
+        }
+
+        int limit = -1;
+        int offset = 0;
+        if (ctx.limitClause() != null) {
+            limit = Integer.parseInt(ctx.limitClause().NUMBER(0).getText());
+            if (ctx.limitClause().NUMBER().size() > 1) {
+                offset = Integer.parseInt(ctx.limitClause().NUMBER(1).getText());
+            }
         }
 
         String groupByCol = null;
@@ -128,7 +159,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
             return new Queries.GroupBySelectQuery(
                     baseTable, groupByCol, funcName, aggCol,
-                    where, having, extraCols, orderByCol, orderByAsc
+                    where, having, extraCols, orderBy, limit, offset
             );
         }
 
@@ -150,30 +181,36 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             };
         }
 
-        if (!ctx.joinClause().isEmpty()) {
+        if (isJoin) {
             if (ctx.joinClause().size() != 1) {
                 throw new IllegalArgumentException("Only one JOIN is supported right now");
             }
 
-            SQLParser.JoinClauseContext joinClause = ctx.joinClause(0);
-            SimpleJoin join = extractSimpleJoin(joinClause);
+            SQLParser.JoinClauseContext joinClauseCtx = ctx.joinClause(0);
+            SimpleJoin join = extractSimpleJoin(joinClauseCtx);
+            boolean isLeftJoin = joinClauseCtx.joinType() != null
+                    && joinClauseCtx.joinType().LEFT() != null;
 
             List<String> leftColumns = new ArrayList<>();
             List<String> rightColumns = new ArrayList<>();
 
             if (!isStar) {
                 for (SQLParser.ColumnRefContext columnRef : colRefs) {
-                    if (columnRef.identifier().size() != 2) {
-                        throw new IllegalArgumentException("JOIN projection must use qualified names: table.column");
-                    }
-                    String tableName = columnRef.identifier(0).getText();
-                    String columnName = columnRef.identifier(1).getText();
-                    if (tableName.equals(baseTable)) {
-                        leftColumns.add(columnName);
-                    } else if (tableName.equals(join.rightTableName())) {
-                        rightColumns.add(columnName);
+                    if (columnRef.identifier().size() == 2) {
+                        String tbl  = columnRef.identifier(0).getText();
+                        String col  = columnRef.identifier(1).getText();
+                        if (tbl.equals(baseTable)) {
+                            leftColumns.add(col);
+                        } else if (tbl.equals(join.rightTableName())) {
+                            rightColumns.add(col);
+                        } else {
+                            throw new IllegalArgumentException("Unknown table in SELECT list: " + tbl);
+                        }
                     } else {
-                        throw new IllegalArgumentException("Unknown table in SELECT list: " + tableName);
+                        // unqualified column — add to both; projection will pick whichever table has it
+                        String col = columnRef.identifier(0).getText();
+                        leftColumns.add(col);
+                        rightColumns.add(col);
                     }
                 }
             }
@@ -181,7 +218,8 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             return new Queries.JoinTableQuery(
                     baseTable, leftColumns.isEmpty() ? null : leftColumns,
                     join.rightTableName(), rightColumns.isEmpty() ? null : rightColumns,
-                    join.leftColumnName(), join.rightColumnName(), isDistinct
+                    join.leftColumnName(), join.rightColumnName(), isDistinct, where,
+                    isLeftJoin, orderBy, aliases, limit, offset
             );
         }
 
@@ -190,7 +228,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                 .toList();
 
         return new Queries.SelectDataQuery(
-                columns, isStar, baseTable, where, isDistinct, orderByCol, orderByAsc
+                columns, isStar, baseTable, where, isDistinct, orderBy, aliases, limit, offset
         );
     }
 
@@ -294,6 +332,18 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             return parseCondition(ctx.condition());
         }
 
+        if (ctx.LIKE() != null) {
+            SQLParser.OperandContext left = ctx.operand(0);
+            SQLParser.OperandContext right = ctx.operand(1);
+            String columnName = left.columnRef() != null
+                    ? toUnqualifiedColumnName(left.columnRef())
+                    : left.getText();
+            String pattern = right.literal() != null
+                    ? getCleanLiteral(right.literal())
+                    : right.getText();
+            return new WhereCondition.Simple(columnName, "LIKE", pattern);
+        }
+
         SQLParser.OperandContext left = ctx.operand(0);
         SQLParser.OperandContext right = ctx.operand(1);
         String op = extractOperator(ctx.comparisonOperator());
@@ -391,10 +441,13 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     }
 
     private DataType parseDataType(SQLParser.DataTypeContext ctx) {
-        if (ctx.INTEGER() != null) return DataType.INTEGER;
-        if (ctx.REAL() != null)    return DataType.REAL;
-        if (ctx.TEXT() != null)    return DataType.TEXT;
-        if (ctx.BLOB() != null)    return DataType.BLOB;
+        if (ctx.INTEGER() != null)  return DataType.INTEGER;
+        if (ctx.REAL() != null)     return DataType.REAL;
+        if (ctx.TEXT() != null)     return DataType.TEXT;
+        if (ctx.BLOB() != null)     return DataType.BLOB;
+        if (ctx.VARCHAR() != null)  return DataType.TEXT;
+        if (ctx.DATE() != null)     return DataType.TEXT;
+        if (ctx.DATETIME() != null) return DataType.TEXT;
         throw new IllegalArgumentException("Unsupported data type: " + ctx.getText());
     }
 

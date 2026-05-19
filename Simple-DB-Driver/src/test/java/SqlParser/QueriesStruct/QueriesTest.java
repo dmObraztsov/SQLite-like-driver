@@ -123,7 +123,7 @@ class QueriesTest {
                     "t2.id", "1",
                     "t2.city", "NSK"
             )));
-            when(engine.join("t1", List.of("id"), "t2", List.of("id"), "id", "id"))
+            when(engine.join("t1", List.of("id"), "t2", List.of("id"), "id", "id", false))
                     .thenReturn(rawMockRows);
 
             var query = new Queries.JoinTableQuery("t1", List.of("id"), "t2", List.of("id"), "id", "id", false);

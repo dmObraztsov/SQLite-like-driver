@@ -22,7 +22,7 @@ useDBStatement : USE DATABASE identifier;
 
 createTableStatement : CREATE TABLE ifNotExists? identifier LPAREN columnDef (COMMA columnDef)* (COMMA tablePkConstraint)? RPAREN;
 
-dropTableStatement : DROP TABLE identifier;
+dropTableStatement : DROP TABLE (IF EXISTS)? identifier;
 
 alterTableStatement : ALTER TABLE name alterAction;
 
@@ -42,19 +42,23 @@ insertTableStatement :
     INSERT INTO identifier (LPAREN identifier (COMMA identifier)* RPAREN)?
     VALUES LPAREN literal (COMMA literal)* RPAREN;
 
-selectStatement : SELECT DISTINCT? selectCols FROM tablename joinClause* whereClause? groupByClause? orderByClause?;
+selectStatement : SELECT DISTINCT? selectCols FROM tablename joinClause* whereClause? groupByClause? orderByClause? limitClause?;
 
 deleteStatement : DELETE FROM tablename whereClause?;
 updateStatement : UPDATE tablename SET updateAssignment (COMMA updateAssignment)* whereClause?;
 aggregateFunc: funcName LPAREN (STAR | columnRef) RPAREN;
 
 selectCols : DISTINCT? (STAR | selectCol (COMMA selectCol)*);
-selectCol  : aggregateFunc | columnRef;
+selectCol  : (aggregateFunc | columnRef) (AS? alias)?;
+alias      : identifier;
 
-joinClause : JOIN tablename ON condition;
+joinClause : joinType? JOIN tablename ON condition;
+joinType : LEFT OUTER? | INNER;
+limitClause : LIMIT NUMBER (OFFSET NUMBER)?;
 whereClause : WHERE condition;
 groupByClause : GROUP BY columnRef (HAVING condition)?;
-orderByClause : ORDER BY columnRef (ASC | DESC)?;
+orderByClause : ORDER BY orderByItem (COMMA orderByItem)*;
+orderByItem   : columnRef (ASC | DESC)?;
 distinctClause : DISTINCT;
 
 tablePkConstraint : PRIMARY KEY LPAREN identifier (COMMA identifier)* RPAREN;
@@ -65,6 +69,7 @@ andCondition : predicate (AND predicate)*;
 predicate
     : LPAREN condition RPAREN
     | operand comparisonOperator operand
+    | operand LIKE operand
     ;
 
 operand
@@ -147,6 +152,9 @@ dataType
     | REAL
     | TEXT
     | BLOB
+    | VARCHAR (LPAREN NUMBER RPAREN)?
+    | DATE
+    | DATETIME
     ;
 
 SELECT       : [sS] [eE] [lL] [eE] [cC] [tT];
@@ -207,6 +215,16 @@ INTEGER     : [iI] [nN] [tT] [eE] [gG] [eE] [rR];
 REAL        : [rR] [eE] [aA] [lL];
 TEXT        : [tT] [eE] [xX] [tT];
 BLOB        : [bB] [lL] [oO] [bB];
+VARCHAR     : [vV] [aA] [rR] [cC] [hH] [aA] [rR];
+DATE        : [dD] [aA] [tT] [eE];
+DATETIME    : [dD] [aA] [tT] [eE] [tT] [iI] [mM] [eE];
+LIKE        : [lL] [iI] [kK] [eE];
+LEFT        : [lL] [eE] [fF] [tT];
+INNER       : [iI] [nN] [nN] [eE] [rR];
+OUTER       : [oO] [uU] [tT] [eE] [rR];
+AS          : [aA] [sS];
+LIMIT       : [lL] [iI] [mM] [iI] [tT];
+OFFSET      : [oO] [fF] [fF] [sS] [eE] [tT];
 
 EQ  : '=';
 NE  : '!=' | '<>';
@@ -222,6 +240,8 @@ LPAREN : '(';
 RPAREN : ')';
 
 NAME   : [a-zA-Z_][a-zA-Z_0-9]*;
-STRING : '"' (~["\\] | '\\' .)* '"';
+STRING : '"' (~["\\] | '\\' .)* '"'
+       | '\'' (~['\\] | '\\' .)* '\''
+       ;
 NUMBER : [0-9]+ ('.' [0-9]+)?;
 WS     : [ \t\r\n]+ -> skip;
