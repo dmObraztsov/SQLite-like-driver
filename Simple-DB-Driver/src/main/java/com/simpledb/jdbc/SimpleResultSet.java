@@ -155,14 +155,30 @@ public class SimpleResultSet implements ResultSet {
     public Object getObject(int columnIndex) throws SQLException { return rawValue(columnIndex); }
     @Override public Object getObject(String columnLabel) throws SQLException { return rawValue(columnLabel); }
     @Override public <T> T getObject(int columnIndex, Class<T> type) throws SQLException {
-        Object v = getObject(columnIndex);
-        if (v == null) {
-            return null;
+        String raw = rawValue(columnIndex);
+        if (raw == null) return null;
+        try {
+            if (type == String.class) return type.cast(raw);
+            if (type == java.time.LocalDate.class)
+                return type.cast(java.time.LocalDate.parse(raw.trim()));
+            if (type == java.time.LocalDateTime.class)
+                return type.cast(java.time.LocalDateTime.parse(raw.trim()));
+            if (type == Integer.class || type == int.class)
+                return type.cast(Integer.parseInt(raw.trim()));
+            if (type == Long.class || type == long.class)
+                return type.cast(Long.parseLong(raw.trim()));
+            if (type == Double.class || type == double.class)
+                return type.cast(Double.parseDouble(raw.trim()));
+            if (type == Boolean.class || type == boolean.class)
+                return type.cast("1".equals(raw.trim()) || "true".equalsIgnoreCase(raw.trim()));
+            if (type == java.sql.Date.class)
+                return type.cast(java.sql.Date.valueOf(raw.trim()));
+            Object v = getObject(columnIndex);
+            if (type.isInstance(v)) return type.cast(v);
+        } catch (Exception e) {
+            throw new SQLException("Cannot convert '" + raw + "' to " + type.getSimpleName(), e);
         }
-        if (type.isInstance(v)) {
-            return type.cast(v);
-        }
-        throw new SQLException("Не могу привести к " + type);
+        throw new SQLException("Cannot convert to " + type.getSimpleName());
     }
     @Override public <T> T getObject(String columnLabel, Class<T> type) throws SQLException { return getObject(requireIdx(columnLabel), type); }
     @Override public Object getObject(int columnIndex, Map<String, Class<?>> map) throws SQLException { return getObject(columnIndex); }

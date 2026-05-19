@@ -10,6 +10,7 @@ import Yadro.DataStruct.DataType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -55,7 +56,8 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
     @Override
     public QueryInterface visitDropTableStatement(SQLParser.DropTableStatementContext ctx) {
-        return new Queries.DropTableQuery(ctx.identifier().getText());
+        boolean ifExists = ctx.IF() != null;
+        return new Queries.DropTableQuery(ctx.identifier().getText(), ifExists);
     }
 
     @Override
@@ -94,13 +96,31 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                 .toList();
 
         WhereCondition where = extractWhere(ctx.whereClause());
+        boolean isJoin = !ctx.joinClause().isEmpty();
 
+        // Build ORDER BY list (qualified for JOIN context to match engine row keys)
         List<Queries.OrderByItem> orderBy = new ArrayList<>();
         if (ctx.orderByClause() != null) {
             for (SQLParser.OrderByItemContext item : ctx.orderByClause().orderByItem()) {
-                String col = toUnqualifiedColumnName(item.columnRef());
+                String col = isJoin ? item.columnRef().getText() : toUnqualifiedColumnName(item.columnRef());
                 boolean asc = item.DESC() == null;
                 orderBy.add(new Queries.OrderByItem(col, asc));
+            }
+        }
+
+        // Build alias map: original key → alias name
+        // For JOIN: use full qualified ref as key (e.g. "visits.id")
+        // For non-JOIN: use unqualified ref as key (e.g. "id")
+        Map<String, String> aliases = new LinkedHashMap<>();
+        for (SQLParser.SelectColContext sc : selectColCtxs) {
+            if (sc.alias() != null) {
+                String key;
+                if (sc.columnRef() != null) {
+                    key = isJoin ? sc.columnRef().getText() : toUnqualifiedColumnName(sc.columnRef());
+                } else {
+                    key = sc.aggregateFunc().funcName().getText().toUpperCase();
+                }
+                aliases.put(key, sc.alias().identifier().getText());
             }
         }
 
@@ -161,7 +181,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             };
         }
 
-        if (!ctx.joinClause().isEmpty()) {
+        if (isJoin) {
             if (ctx.joinClause().size() != 1) {
                 throw new IllegalArgumentException("Only one JOIN is supported right now");
             }
@@ -176,17 +196,21 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
             if (!isStar) {
                 for (SQLParser.ColumnRefContext columnRef : colRefs) {
-                    if (columnRef.identifier().size() != 2) {
-                        throw new IllegalArgumentException("JOIN projection must use qualified names: table.column");
-                    }
-                    String tableName = columnRef.identifier(0).getText();
-                    String columnName = columnRef.identifier(1).getText();
-                    if (tableName.equals(baseTable)) {
-                        leftColumns.add(columnName);
-                    } else if (tableName.equals(join.rightTableName())) {
-                        rightColumns.add(columnName);
+                    if (columnRef.identifier().size() == 2) {
+                        String tbl  = columnRef.identifier(0).getText();
+                        String col  = columnRef.identifier(1).getText();
+                        if (tbl.equals(baseTable)) {
+                            leftColumns.add(col);
+                        } else if (tbl.equals(join.rightTableName())) {
+                            rightColumns.add(col);
+                        } else {
+                            throw new IllegalArgumentException("Unknown table in SELECT list: " + tbl);
+                        }
                     } else {
-                        throw new IllegalArgumentException("Unknown table in SELECT list: " + tableName);
+                        // unqualified column — add to both; projection will pick whichever table has it
+                        String col = columnRef.identifier(0).getText();
+                        leftColumns.add(col);
+                        rightColumns.add(col);
                     }
                 }
             }
@@ -195,7 +219,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                     baseTable, leftColumns.isEmpty() ? null : leftColumns,
                     join.rightTableName(), rightColumns.isEmpty() ? null : rightColumns,
                     join.leftColumnName(), join.rightColumnName(), isDistinct, where,
-                    isLeftJoin, limit, offset
+                    isLeftJoin, orderBy, aliases, limit, offset
             );
         }
 
@@ -204,7 +228,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
                 .toList();
 
         return new Queries.SelectDataQuery(
-                columns, isStar, baseTable, where, isDistinct, orderBy, limit, offset
+                columns, isStar, baseTable, where, isDistinct, orderBy, aliases, limit, offset
         );
     }
 

@@ -22,7 +22,7 @@ useDBStatement : USE DATABASE identifier;
 
 createTableStatement : CREATE TABLE ifNotExists? identifier LPAREN columnDef (COMMA columnDef)* (COMMA tablePkConstraint)? RPAREN;
 
-dropTableStatement : DROP TABLE identifier;
+dropTableStatement : DROP TABLE (IF EXISTS)? identifier;
 
 alterTableStatement : ALTER TABLE name alterAction;
 
@@ -49,10 +49,11 @@ updateStatement : UPDATE tablename SET updateAssignment (COMMA updateAssignment)
 aggregateFunc: funcName LPAREN (STAR | columnRef) RPAREN;
 
 selectCols : DISTINCT? (STAR | selectCol (COMMA selectCol)*);
-selectCol  : aggregateFunc | columnRef;
+selectCol  : (aggregateFunc | columnRef) (AS? alias)?;
+alias      : identifier;
 
 joinClause : joinType? JOIN tablename ON condition;
-joinType : LEFT | INNER;
+joinType : LEFT OUTER? | INNER;
 limitClause : LIMIT NUMBER (OFFSET NUMBER)?;
 whereClause : WHERE condition;
 groupByClause : GROUP BY columnRef (HAVING condition)?;
@@ -220,6 +221,8 @@ DATETIME    : [dD] [aA] [tT] [eE] [tT] [iI] [mM] [eE];
 LIKE        : [lL] [iI] [kK] [eE];
 LEFT        : [lL] [eE] [fF] [tT];
 INNER       : [iI] [nN] [nN] [eE] [rR];
+OUTER       : [oO] [uU] [tT] [eE] [rR];
+AS          : [aA] [sS];
 LIMIT       : [lL] [iI] [mM] [iI] [tT];
 OFFSET      : [oO] [fF] [fF] [sS] [eE] [tT];
 

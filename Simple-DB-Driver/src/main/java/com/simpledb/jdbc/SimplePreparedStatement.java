@@ -175,8 +175,8 @@ public class SimplePreparedStatement implements PreparedStatement {
 
     @Override public ResultSet getResultSet()       { return currentResultSet; }
     @Override public int getUpdateCount()           { return updateCount; }
-    @Override public boolean getMoreResults()       { return false; }
-    @Override public boolean getMoreResults(int c)  { return false; }
+    @Override public boolean getMoreResults()       { updateCount = -1; return false; }
+    @Override public boolean getMoreResults(int c)  { updateCount = -1; return false; }
     @Override public Connection getConnection()     { return conn; }
 
     @Override

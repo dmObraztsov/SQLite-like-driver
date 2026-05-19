@@ -6,6 +6,7 @@ import Yadro.DataStruct.DatabaseEngine;
 import Yadro.DataStruct.Row;
 
 import java.util.*;
+import java.util.LinkedHashMap;
 
 public class Queries {
 
@@ -49,10 +50,16 @@ public class Queries {
         }
     }
 
-    public record DropTableQuery(String tableName) implements QueryInterface {
+    public record DropTableQuery(String tableName, boolean ifExists) implements QueryInterface {
+        public DropTableQuery(String tableName) { this(tableName, false); }
+
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception {
-            engine.dropTable(tableName);
+            try {
+                engine.dropTable(tableName);
+            } catch (Exception e) {
+                if (!ifExists) throw e;
+            }
             return new ExecutionResult(true, "Table '" + tableName + "' dropped successfully.");
         }
     }
@@ -68,13 +75,15 @@ public class Queries {
     public record SelectDataQuery(List<String> selectCols, boolean isStar, String tableName,
                                   WhereCondition where, boolean isDistinct,
                                   List<OrderByItem> orderBy,
+                                  Map<String, String> aliases,
                                   int limit, int offset) implements QueryInterface {
+        // backward-compat: old String orderByCol, boolean orderByAsc style (used by tests)
         public SelectDataQuery(List<String> selectCols, boolean isStar, String tableName,
                                WhereCondition where, boolean isDistinct,
                                String orderByCol, boolean orderByAsc) {
             this(selectCols, isStar, tableName, where, isDistinct,
                  orderByCol != null ? List.of(new OrderByItem(orderByCol, orderByAsc)) : List.of(),
-                 -1, 0);
+                 Map.of(), -1, 0);
         }
 
         public SelectDataQuery(List<String> selectCols, boolean isStar, String tableName,
@@ -82,14 +91,21 @@ public class Queries {
                                String orderByCol, boolean orderByAsc, int limit, int offset) {
             this(selectCols, isStar, tableName, where, isDistinct,
                  orderByCol != null ? List.of(new OrderByItem(orderByCol, orderByAsc)) : List.of(),
-                 limit, offset);
+                 Map.of(), limit, offset);
+        }
+
+        // new-style with List<OrderByItem> but no aliases (for parser before alias support)
+        public SelectDataQuery(List<String> selectCols, boolean isStar, String tableName,
+                               WhereCondition where, boolean isDistinct,
+                               List<OrderByItem> orderBy, int limit, int offset) {
+            this(selectCols, isStar, tableName, where, isDistinct, orderBy, Map.of(), limit, offset);
         }
 
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception {
             List<Row> results = engine.select(tableName, selectCols, isStar, where, isDistinct, null, true);
             return new ExecutionResult(true, "Select completed.",
-                    applyLimitOffset(multiSort(results, orderBy), limit, offset));
+                    applyLimitOffset(multiSort(applyAliases(results, aliases), orderBy), limit, offset));
         }
     }
 
@@ -134,19 +150,34 @@ public class Queries {
                                   String table2Name, List<String> columns2,
                                   String leftJoinCol, String rightJoinCol,
                                   boolean isDistinct, WhereCondition where,
-                                  boolean isLeftJoin, int limit, int offset) implements QueryInterface {
+                                  boolean isLeftJoin,
+                                  List<OrderByItem> orderBy,
+                                  Map<String, String> aliases,
+                                  int limit, int offset) implements QueryInterface {
         public JoinTableQuery(String table1Name, List<String> columns1,
                               String table2Name, List<String> columns2,
                               String leftJoinCol, String rightJoinCol,
                               boolean isDistinct, WhereCondition where) {
-            this(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol, isDistinct, where, false, -1, 0);
+            this(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol,
+                 isDistinct, where, false, List.of(), Map.of(), -1, 0);
         }
 
         public JoinTableQuery(String table1Name, List<String> columns1,
                               String table2Name, List<String> columns2,
                               String leftJoinCol, String rightJoinCol,
                               boolean isDistinct) {
-            this(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol, isDistinct, null, false, -1, 0);
+            this(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol,
+                 isDistinct, null, false, List.of(), Map.of(), -1, 0);
+        }
+
+        // backward-compat: isLeftJoin + limit/offset but no orderBy/aliases
+        public JoinTableQuery(String table1Name, List<String> columns1,
+                              String table2Name, List<String> columns2,
+                              String leftJoinCol, String rightJoinCol,
+                              boolean isDistinct, WhereCondition where,
+                              boolean isLeftJoin, int limit, int offset) {
+            this(table1Name, columns1, table2Name, columns2, leftJoinCol, rightJoinCol,
+                 isDistinct, where, isLeftJoin, List.of(), Map.of(), limit, offset);
         }
 
         @Override
@@ -190,9 +221,11 @@ public class Queries {
                 projectedRows.add(new Row(filteredValues));
             }
 
-            List<Row> finalResult = projectedRows;
+            List<Row> sorted = multiSort(projectedRows, orderBy);
+            List<Row> aliased = applyAliases(sorted, aliases);
+            List<Row> finalResult = aliased;
             if (this.isDistinct) {
-                finalResult = new ArrayList<>(new LinkedHashSet<>(projectedRows));
+                finalResult = new ArrayList<>(new LinkedHashSet<>(aliased));
             }
             return new ExecutionResult(true, "Join completed", applyLimitOffset(finalResult, limit, offset));
         }
@@ -232,6 +265,24 @@ public class Queries {
             }
             return asc ? cmp : -cmp;
         };
+    }
+
+    static List<Row> applyAliases(List<Row> rows, Map<String, String> aliases) {
+        if (aliases == null || aliases.isEmpty()) return rows;
+        List<Row> result = new ArrayList<>(rows.size());
+        for (Row row : rows) {
+            Map<String, String> newVals = new LinkedHashMap<>();
+            row.getValuesMap().forEach((k, v) -> {
+                String alias = aliases.get(k);
+                if (alias == null) {
+                    int dot = k.lastIndexOf('.');
+                    if (dot >= 0) alias = aliases.get(k.substring(dot + 1));
+                }
+                newVals.put(alias != null ? alias : k, v);
+            });
+            result.add(new Row(newVals));
+        }
+        return result;
     }
 
     public record BeginTransactionQuery() implements QueryInterface {
