@@ -9,6 +9,7 @@ build/
 .idea/jarRepositories.xml
 .idea/compiler.xml
 .idea/libraries/
+.idea/workspace.xml
 *.iws
 *.iml
 *.ipr
@@ -44,3 +45,10 @@ bin/
 ### Test runtime artifacts ###
 test_e2e_db/
 src/main/data/
+
+### Database data directory (generated at runtime via --init) ###
+db-data/
+
+### Server log files ###
+*.log
+*.err

@@ -56,7 +56,7 @@ joinClause : joinType? JOIN tablename ON condition;
 joinType : LEFT OUTER? | INNER;
 limitClause : LIMIT NUMBER (OFFSET NUMBER)?;
 whereClause : WHERE condition;
-groupByClause : GROUP BY columnRef (HAVING condition)?;
+groupByClause : GROUP BY columnRef (COMMA columnRef)* (HAVING condition)?;
 orderByClause : ORDER BY orderByItem (COMMA orderByItem)*;
 orderByItem   : columnRef (ASC | DESC)?;
 distinctClause : DISTINCT;
@@ -90,7 +90,7 @@ comparisonOperator
     | LE
     ;
 
-tablename : identifier;
+tablename : identifier (AS? identifier)?;
 
 columnDef : identifier dataType columnConstraint*;
 

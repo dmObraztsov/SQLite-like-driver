@@ -9,7 +9,6 @@ import Yadro.DataStruct.Constraints;
 import Yadro.DataStruct.DataType;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,53 +79,90 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
     @Override
     public QueryInterface visitSelectStatement(SQLParser.SelectStatementContext ctx) {
-        String baseTable = ctx.tablename().getText();
+        // --- Extract base table and optional alias ---
+        String baseTable = ctx.tablename().identifier(0).getText();
+        String baseAlias = ctx.tablename().identifier().size() > 1
+                ? ctx.tablename().identifier(1).getText() : null;
+
         boolean isDistinct = ctx.DISTINCT() != null;
 
+        // Build alias → real table map
+        Map<String, String> aliasMap = new LinkedHashMap<>();
+        aliasMap.put(baseAlias != null ? baseAlias : baseTable, baseTable);
+
+        // --- Parse JOIN clauses ---
+        List<SQLParser.JoinClauseContext> joinCtxs = ctx.joinClause();
+        boolean hasJoins = !joinCtxs.isEmpty();
+
+        List<Queries.JoinSpec> joinSpecs = new ArrayList<>();
+        for (SQLParser.JoinClauseContext jc : joinCtxs) {
+            String jtName  = jc.tablename().identifier(0).getText();
+            String jtAlias = jc.tablename().identifier().size() > 1
+                    ? jc.tablename().identifier(1).getText() : null;
+            aliasMap.put(jtAlias != null ? jtAlias : jtName, jtName);
+
+            boolean isLeft = jc.joinType() != null && jc.joinType().LEFT() != null;
+            String[] pair = extractJoinKeyPair(jc.condition(), aliasMap);
+            joinSpecs.add(new Queries.JoinSpec(jtName, jtAlias, pair[0], pair[1], isLeft));
+        }
+
+        // --- Parse SELECT list ---
         List<SQLParser.SelectColContext> selectColCtxs = ctx.selectCols().selectCol();
         boolean isStar = ctx.selectCols().STAR() != null;
 
-        List<SQLParser.AggregateFuncContext> aggFuncs = selectColCtxs.stream()
-                .filter(sc -> sc.aggregateFunc() != null)
-                .map(SQLParser.SelectColContext::aggregateFunc)
-                .toList();
+        List<Queries.AggSpec> aggSpecs = new ArrayList<>();
+        List<String> regularCols = new ArrayList<>();
+        Map<String, String> colAliases = new LinkedHashMap<>();
 
-        List<SQLParser.ColumnRefContext> colRefs = selectColCtxs.stream()
-                .filter(sc -> sc.columnRef() != null)
-                .map(SQLParser.SelectColContext::columnRef)
-                .toList();
+        if (!isStar) {
+            for (SQLParser.SelectColContext sc : selectColCtxs) {
+                String alias = sc.alias() != null ? sc.alias().identifier().getText() : null;
+                if (sc.aggregateFunc() != null) {
+                    String func = sc.aggregateFunc().funcName().getText().toUpperCase();
+                    String col = sc.aggregateFunc().columnRef() != null
+                            ? sc.aggregateFunc().columnRef().identifier()
+                               .get(sc.aggregateFunc().columnRef().identifier().size() - 1).getText()
+                            : null;
+                    String aggAlias = alias != null ? alias : func;
+                    aggSpecs.add(new Queries.AggSpec(func, col, aggAlias));
+                } else {
+                    String colFull = resolveColRef(sc.columnRef(), aliasMap);
+                    regularCols.add(colFull);
+                    if (alias != null) colAliases.put(colFull, alias);
+                }
+            }
+        }
 
+        // --- Parse WHERE (always preserve full qualified names) ---
         WhereCondition where = extractWhere(ctx.whereClause());
-        boolean isJoin = !ctx.joinClause().isEmpty();
+        if (where != null && (hasJoins || baseAlias != null)) {
+            where = normalizeWhere(where, aliasMap);
+        }
 
-        // Build ORDER BY list (qualified for JOIN context to match engine row keys)
+        // --- Parse GROUP BY ---
+        List<String> groupByCols = new ArrayList<>();
+        WhereCondition having = null;
+        if (ctx.groupByClause() != null) {
+            for (SQLParser.ColumnRefContext cref : ctx.groupByClause().columnRef()) {
+                groupByCols.add(resolveColRef(cref, aliasMap));
+            }
+            if (ctx.groupByClause().condition() != null) {
+                having = parseCondition(ctx.groupByClause().condition());
+            }
+        }
+
+        // --- Parse ORDER BY ---
         List<Queries.OrderByItem> orderBy = new ArrayList<>();
         if (ctx.orderByClause() != null) {
             for (SQLParser.OrderByItemContext item : ctx.orderByClause().orderByItem()) {
-                String col = isJoin ? item.columnRef().getText() : toUnqualifiedColumnName(item.columnRef());
+                String col = resolveColRef(item.columnRef(), aliasMap);
                 boolean asc = item.DESC() == null;
                 orderBy.add(new Queries.OrderByItem(col, asc));
             }
         }
 
-        // Build alias map: original key → alias name
-        // For JOIN: use full qualified ref as key (e.g. "visits.id")
-        // For non-JOIN: use unqualified ref as key (e.g. "id")
-        Map<String, String> aliases = new LinkedHashMap<>();
-        for (SQLParser.SelectColContext sc : selectColCtxs) {
-            if (sc.alias() != null) {
-                String key;
-                if (sc.columnRef() != null) {
-                    key = isJoin ? sc.columnRef().getText() : toUnqualifiedColumnName(sc.columnRef());
-                } else {
-                    key = sc.aggregateFunc().funcName().getText().toUpperCase();
-                }
-                aliases.put(key, sc.alias().identifier().getText());
-            }
-        }
-
-        int limit = -1;
-        int offset = 0;
+        // --- Parse LIMIT ---
+        int limit = -1, offset = 0;
         if (ctx.limitClause() != null) {
             limit = Integer.parseInt(ctx.limitClause().NUMBER(0).getText());
             if (ctx.limitClause().NUMBER().size() > 1) {
@@ -134,104 +170,121 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             }
         }
 
-        String groupByCol = null;
-        WhereCondition having = null;
-        if (ctx.groupByClause() != null) {
-            groupByCol = toUnqualifiedColumnName(ctx.groupByClause().columnRef());
-            if (ctx.groupByClause().condition() != null) {
-                having = parseCondition(ctx.groupByClause().condition());
-            }
-        }
+        // --- Routing ---
+        boolean needsAdvanced = hasJoins
+                || baseAlias != null
+                || !aggSpecs.isEmpty()
+                || groupByCols.size() > 1;
 
-        if (groupByCol != null) {
-            if (aggFuncs.isEmpty()) {
-                throw new IllegalArgumentException("GROUP BY requires an aggregate function in SELECT");
-            }
-            if (aggFuncs.size() > 1) {
-                throw new IllegalArgumentException("Only one aggregate function is supported with GROUP BY");
-            }
-            SQLParser.AggregateFuncContext aggCtx = aggFuncs.get(0);
-            String funcName = aggCtx.funcName().getText().toUpperCase();
-            String aggCol = aggCtx.columnRef() != null ? toUnqualifiedColumnName(aggCtx.columnRef()) : null;
-
-            List<String> extraCols = colRefs.stream()
-                    .map(this::toUnqualifiedColumnName)
-                    .toList();
-
-            return new Queries.GroupBySelectQuery(
-                    baseTable, groupByCol, funcName, aggCol,
-                    where, having, extraCols, orderBy, limit, offset
+        if (needsAdvanced) {
+            return new Queries.AdvancedSelectQuery(
+                    baseTable, baseAlias, joinSpecs, isStar,
+                    regularCols, colAliases, aggSpecs,
+                    groupByCols, where, having,
+                    isDistinct, orderBy, limit, offset
             );
         }
 
-        if (!aggFuncs.isEmpty()) {
-            if (aggFuncs.size() > 1) {
-                throw new IllegalArgumentException("Only one aggregate function is supported at a time");
+        // --- Legacy routing for simple cases ---
+        if (!groupByCols.isEmpty() && !aggSpecs.isEmpty()) {
+            // Single GROUP BY + single aggregate (old path)
+            String groupByCol = groupByCols.get(0);
+            Queries.AggSpec agg = aggSpecs.get(0);
+            Map<String, String> aliases = new LinkedHashMap<>();
+            aliases.put(agg.func(), agg.alias());
+            for (String col : regularCols) {
+                if (colAliases.containsKey(col)) aliases.put(col, colAliases.get(col));
             }
-            SQLParser.AggregateFuncContext aggCtx = aggFuncs.get(0);
-            String funcName = aggCtx.funcName().getText().toUpperCase();
-            String colName = aggCtx.columnRef() != null ? toUnqualifiedColumnName(aggCtx.columnRef()) : null;
+            return new Queries.GroupBySelectQuery(
+                    baseTable, groupByCol, agg.func(), agg.col(),
+                    where, having, regularCols, orderBy, limit, offset, aliases
+            );
+        }
 
-            return switch (funcName) {
-                case "COUNT" -> new Queries.CountQuery(baseTable, colName, where);
-                case "SUM"   -> new Queries.SumQuery(baseTable, colName, where);
-                case "AVG"   -> new Queries.AvgQuery(baseTable, colName, where);
-                case "MIN"   -> new Queries.MinQuery(baseTable, colName, where);
-                case "MAX"   -> new Queries.MaxQuery(baseTable, colName, where);
-                default -> throw new IllegalArgumentException("Unsupported aggregate function: " + funcName);
+        if (!aggSpecs.isEmpty()) {
+            Queries.AggSpec agg = aggSpecs.get(0);
+            String alias = agg.alias().equals(agg.func()) ? null : agg.alias();
+            return switch (agg.func()) {
+                case "COUNT" -> new Queries.CountQuery(baseTable, agg.col(), where, alias);
+                case "SUM"   -> new Queries.SumQuery(baseTable, agg.col(), where, alias);
+                case "AVG"   -> new Queries.AvgQuery(baseTable, agg.col(), where, alias);
+                case "MIN"   -> new Queries.MinQuery(baseTable, agg.col(), where, alias);
+                case "MAX"   -> new Queries.MaxQuery(baseTable, agg.col(), where, alias);
+                default -> throw new IllegalArgumentException("Unknown agg: " + agg.func());
             };
         }
 
-        if (isJoin) {
-            if (ctx.joinClause().size() != 1) {
-                throw new IllegalArgumentException("Only one JOIN is supported right now");
-            }
-
-            SQLParser.JoinClauseContext joinClauseCtx = ctx.joinClause(0);
-            SimpleJoin join = extractSimpleJoin(joinClauseCtx);
-            boolean isLeftJoin = joinClauseCtx.joinType() != null
-                    && joinClauseCtx.joinType().LEFT() != null;
-
-            List<String> leftColumns = new ArrayList<>();
-            List<String> rightColumns = new ArrayList<>();
-
-            if (!isStar) {
-                for (SQLParser.ColumnRefContext columnRef : colRefs) {
-                    if (columnRef.identifier().size() == 2) {
-                        String tbl  = columnRef.identifier(0).getText();
-                        String col  = columnRef.identifier(1).getText();
-                        if (tbl.equals(baseTable)) {
-                            leftColumns.add(col);
-                        } else if (tbl.equals(join.rightTableName())) {
-                            rightColumns.add(col);
-                        } else {
-                            throw new IllegalArgumentException("Unknown table in SELECT list: " + tbl);
-                        }
-                    } else {
-                        // unqualified column — add to both; projection will pick whichever table has it
-                        String col = columnRef.identifier(0).getText();
-                        leftColumns.add(col);
-                        rightColumns.add(col);
-                    }
-                }
-            }
-
-            return new Queries.JoinTableQuery(
-                    baseTable, leftColumns.isEmpty() ? null : leftColumns,
-                    join.rightTableName(), rightColumns.isEmpty() ? null : rightColumns,
-                    join.leftColumnName(), join.rightColumnName(), isDistinct, where,
-                    isLeftJoin, orderBy, aliases, limit, offset
-            );
-        }
-
-        List<String> columns = isStar ? null : colRefs.stream()
-                .map(this::toUnqualifiedColumnName)
-                .toList();
-
+        // Simple SELECT
+        List<String> columns = isStar ? null : new ArrayList<>(regularCols);
+        Map<String, String> aliases = new LinkedHashMap<>(colAliases);
         return new Queries.SelectDataQuery(
                 columns, isStar, baseTable, where, isDistinct, orderBy, aliases, limit, offset
         );
     }
+
+    // --- Helper: extract the join key pair from the ON condition ---
+    private String[] extractJoinKeyPair(SQLParser.ConditionContext cond, Map<String, String> aliasMap) {
+        SQLParser.AndConditionContext andCond = cond.orCondition().andCondition(0);
+        SQLParser.PredicateContext pred = andCond.predicate(0);
+
+        SQLParser.ColumnRefContext leftRef  = pred.operand(0).columnRef();
+        SQLParser.ColumnRefContext rightRef = pred.operand(1).columnRef();
+
+        // left key: fully qualified real name (e.g. "flight_passengers.document_number")
+        String leftKey = resolveColRef(leftRef, aliasMap);
+
+        // right key: just the column name part from the right table
+        String rightKey = rightRef.identifier().get(rightRef.identifier().size() - 1).getText();
+
+        return new String[]{leftKey, rightKey};
+    }
+
+    // --- Helper: resolve a columnRef ---
+    // Returns "alias.column" (keeps alias as-is) so that the same table joined twice
+    // with different aliases (a1, a2) produces distinct row keys.
+    // The engine's resolveQualified() handles suffix-based lookup as a fallback.
+    private String resolveColRef(SQLParser.ColumnRefContext cref, Map<String, String> aliasMap) {
+        if (cref.identifier().size() == 2) {
+            String tablePart = cref.identifier(0).getText();
+            String colPart   = cref.identifier(1).getText();
+            return tablePart + "." + colPart;   // keep alias prefix, not real table name
+        }
+        return cref.identifier(0).getText();
+    }
+
+    // --- Helper: normalize WHERE condition ---
+    // Column references keep their alias prefix; the engine resolves by exact or suffix match.
+    private WhereCondition normalizeWhere(WhereCondition cond, Map<String, String> aliasMap) {
+        return switch (cond) {
+            case WhereCondition.Simple s -> new WhereCondition.Simple(
+                    normalizeCol(s.column(), aliasMap), s.op(), s.value()
+            );
+            case WhereCondition.And and -> new WhereCondition.And(
+                    and.operands().stream().map(c -> normalizeWhere(c, aliasMap)).toList()
+            );
+            case WhereCondition.Or or -> new WhereCondition.Or(
+                    or.operands().stream().map(c -> normalizeWhere(c, aliasMap)).toList()
+            );
+            case WhereCondition.IsNull n -> new WhereCondition.IsNull(
+                    normalizeCol(n.column(), aliasMap), n.isNull()
+            );
+            case WhereCondition.In in -> new WhereCondition.In(
+                    normalizeCol(in.column(), aliasMap), in.values(), in.negated()
+            );
+            case WhereCondition.Between b -> new WhereCondition.Between(
+                    normalizeCol(b.column(), aliasMap), b.low(), b.high()
+            );
+        };
+    }
+
+    private String normalizeCol(String name, Map<String, String> aliasMap) {
+        // Keep alias prefix unchanged; resolveQualified() in the engine does suffix lookup.
+        return name;
+    }
+
+    // =========================================================
+    // Remaining visitors (unchanged)
+    // =========================================================
 
     @Override
     public QueryInterface visitAlterTableStatement(SQLParser.AlterTableStatementContext ctx) {
@@ -273,15 +326,15 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
     @Override
     public QueryInterface visitDeleteStatement(SQLParser.DeleteStatementContext ctx) {
-        String tableName = ctx.tablename().getText();
+        String tableName = ctx.tablename().identifier(0).getText();
         WhereCondition where = extractWhere(ctx.whereClause());
         return new Queries.DeleteTableQuery(tableName, where);
     }
 
     @Override
     public QueryInterface visitUpdateStatement(SQLParser.UpdateStatementContext ctx) {
-        String tableName = ctx.tablename().getText();
-        Map<String, String> setValues = new HashMap<>();
+        String tableName = ctx.tablename().identifier(0).getText();
+        Map<String, String> setValues = new java.util.HashMap<>();
 
         for (SQLParser.UpdateAssignmentContext assignCtx : ctx.updateAssignment()) {
             String colName = assignCtx.columnRef().identifier().get(0).getText();
@@ -300,6 +353,10 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         WhereCondition where = extractWhere(ctx.whereClause());
         return new Queries.UpdateTableQuery(tableName, setValues, where);
     }
+
+    // =========================================================
+    // WHERE / condition parsing
+    // =========================================================
 
     private WhereCondition extractWhere(SQLParser.WhereClauseContext whereClause) {
         if (whereClause == null) return null;
@@ -334,13 +391,13 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         if (ctx.IS() != null) {
-            String col = toUnqualifiedColumnName(ctx.columnRef());
+            String col = toFullColumnName(ctx.columnRef());
             boolean isNull = ctx.NOT() == null;
             return new WhereCondition.IsNull(col, isNull);
         }
 
         if (ctx.IN() != null) {
-            String col = toUnqualifiedColumnName(ctx.columnRef());
+            String col = toFullColumnName(ctx.columnRef());
             boolean negated = ctx.NOT() != null;
             List<String> vals = ctx.literal().stream()
                     .map(this::getCleanLiteral)
@@ -349,17 +406,17 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         if (ctx.BETWEEN() != null) {
-            String col = toUnqualifiedColumnName(ctx.columnRef());
+            String col  = toFullColumnName(ctx.columnRef());
             String low  = getOperandValue(ctx.operand(0));
             String high = getOperandValue(ctx.operand(1));
             return new WhereCondition.Between(col, low, high);
         }
 
         if (ctx.LIKE() != null) {
-            SQLParser.OperandContext left = ctx.operand(0);
+            SQLParser.OperandContext left  = ctx.operand(0);
             SQLParser.OperandContext right = ctx.operand(1);
             String columnName = left.columnRef() != null
-                    ? toUnqualifiedColumnName(left.columnRef())
+                    ? toFullColumnName(left.columnRef())
                     : left.getText();
             String pattern = right.literal() != null
                     ? getCleanLiteral(right.literal())
@@ -367,13 +424,13 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             return new WhereCondition.Simple(columnName, "LIKE", pattern);
         }
 
-        SQLParser.OperandContext left = ctx.operand(0);
+        SQLParser.OperandContext left  = ctx.operand(0);
         SQLParser.OperandContext right = ctx.operand(1);
         String op = extractOperator(ctx.comparisonOperator());
 
         String columnName;
         if (left.columnRef() != null) {
-            columnName = toUnqualifiedColumnName(left.columnRef());
+            columnName = toFullColumnName(left.columnRef());
         } else if (left.aggregateFunc() != null) {
             columnName = left.aggregateFunc().funcName().getText().toUpperCase();
         } else {
@@ -384,7 +441,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         if (right.literal() != null) {
             value = getCleanLiteral(right.literal());
         } else if (right.columnRef() != null) {
-            value = toUnqualifiedColumnName(right.columnRef());
+            value = toFullColumnName(right.columnRef());
         } else if (right.aggregateFunc() != null) {
             value = right.aggregateFunc().funcName().getText().toUpperCase();
         } else {
@@ -396,8 +453,28 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
     private String getOperandValue(SQLParser.OperandContext op) {
         if (op.literal() != null) return getCleanLiteral(op.literal());
-        if (op.columnRef() != null) return toUnqualifiedColumnName(op.columnRef());
+        if (op.columnRef() != null) return toFullColumnName(op.columnRef());
         return op.getText();
+    }
+
+    // =========================================================
+    // Column / metadata helpers
+    // =========================================================
+
+    /** Returns the full column name: "table.col" if qualified, "col" if not. */
+    private String toFullColumnName(SQLParser.ColumnRefContext columnRef) {
+        if (columnRef.identifier().size() == 2) {
+            return columnRef.identifier(0).getText() + "." + columnRef.identifier(1).getText();
+        }
+        return columnRef.identifier(0).getText();
+    }
+
+    /** Returns only the column name part (strips table prefix). */
+    private String toUnqualifiedColumnName(SQLParser.ColumnRefContext columnRef) {
+        if (columnRef.identifier().size() == 1) {
+            return columnRef.identifier(0).getText();
+        }
+        return columnRef.identifier(1).getText();
     }
 
     private static Constraints getConstraints(SQLParser.ConstraintContext currConstraint) {
@@ -421,20 +498,13 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             case "NULL"    -> DataType.NULL;
             default        -> null;
         };
-
-        return new ColumnMetadata(
-                columnContext.name().getText(),
-                dataType,
-                0,
-                new ArrayList<>(),
-                null
-        );
+        return new ColumnMetadata(columnContext.name().getText(), dataType, 0, new ArrayList<>(), null);
     }
 
     private ColumnMetadata parseColumn2(SQLParser.ColumnDefContext columnContext) {
         DataType dataType = parseDataType(columnContext.dataType());
         ArrayList<Constraints> constraints = new ArrayList<>();
-        String defaultValue = null;
+        String defaultValue   = null;
         String checkExpression = null;
 
         for (SQLParser.ColumnConstraintContext constraintContext : columnContext.columnConstraint()) {
@@ -458,11 +528,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         }
 
         ColumnMetadata metadata = new ColumnMetadata(
-                columnContext.identifier().getText(),
-                dataType,
-                0,
-                constraints,
-                (Collate) null
+                columnContext.identifier().getText(), dataType, 0, constraints, (Collate) null
         );
         metadata.setDefaultValue(defaultValue);
         metadata.setCheckExpression(checkExpression);
@@ -480,13 +546,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         throw new IllegalArgumentException("Unsupported data type: " + ctx.getText());
     }
 
-    private String toUnqualifiedColumnName(SQLParser.ColumnRefContext columnRef) {
-        if (columnRef.identifier().size() == 1) {
-            return columnRef.identifier(0).getText();
-        }
-        return columnRef.identifier(1).getText();
-    }
-
     private String extractOperator(SQLParser.ComparisonOperatorContext ctx) {
         if (ctx.EQ() != null) return "=";
         if (ctx.NE() != null) return "!=";
@@ -496,39 +555,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         if (ctx.LE() != null) return "<=";
         return "=";
     }
-
-    private SimpleJoin extractSimpleJoin(SQLParser.JoinClauseContext joinClause) {
-        SQLParser.ConditionContext condition = joinClause.condition();
-        List<SQLParser.AndConditionContext> andClauses = condition.orCondition().andCondition();
-        if (andClauses.size() != 1) {
-            throw new IllegalArgumentException("Complex JOIN conditions are not supported right now");
-        }
-        SQLParser.AndConditionContext andCondition = andClauses.get(0);
-        if (andCondition.predicate().size() != 1) {
-            throw new IllegalArgumentException("Complex JOIN conditions are not supported right now");
-        }
-        SQLParser.PredicateContext predicate = andCondition.predicate(0);
-        if (predicate.comparisonOperator() == null || predicate.comparisonOperator().EQ() == null) {
-            throw new IllegalArgumentException("Only JOIN ... ON left = right is supported right now");
-        }
-        if (predicate.operand(0).columnRef() == null || predicate.operand(1).columnRef() == null) {
-            throw new IllegalArgumentException("JOIN operands must be columns");
-        }
-
-        SQLParser.ColumnRefContext leftRef  = predicate.operand(0).columnRef();
-        SQLParser.ColumnRefContext rightRef = predicate.operand(1).columnRef();
-        if (leftRef.identifier().size() != 2 || rightRef.identifier().size() != 2) {
-            throw new IllegalArgumentException("JOIN columns must be qualified: table.column");
-        }
-
-        return new SimpleJoin(
-                joinClause.tablename().getText(),
-                leftRef.identifier(1).getText(),
-                rightRef.identifier(1).getText()
-        );
-    }
-
-    private record SimpleJoin(String rightTableName, String leftColumnName, String rightColumnName) {}
 
     private String getCleanLiteral(SQLParser.LiteralContext ctx) {
         if (ctx == null) return null;
