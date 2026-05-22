@@ -19,8 +19,6 @@ public class DatabaseMetadata implements Serializable {
     private Date createdDate;
     private Date lastModified;
 
-    //TODO private long totalSize;
-
     public DatabaseMetadata() {
     }
 

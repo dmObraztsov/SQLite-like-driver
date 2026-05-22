@@ -10,24 +10,15 @@ import java.net.URL;
 import java.sql.*;
 import java.util.*;
 
-/**
- * JDBC ResultSet — курсор по результату SELECT.
- *
- * Особенности нашего движка:
- *   <p>- Row.values это HashMap, порядок ключей не гарантирован.
- *     Фиксируем порядок один раз — алфавитно по первой Row.
- *   <p>- все значения хранятся как String, типизация — парсинг в getInt/getDouble/...
- *   <p>- значение "NULL" (буквально строка) трактуем как SQL NULL.
- */
 public class SimpleResultSet implements ResultSet {
 
     private final List<Row> rows;
-    private final List<String> columnNames;       // фиксированный порядок
-    private final Map<String, Integer> nameToIdx; // 1-based индексы
+    private final List<String> columnNames;
+    private final Map<String, Integer> nameToIdx;
     private final SimpleResultSetMetaData metaData;
     private final Statement parent;
 
-    private int cursor = -1; // курсор перед первой строкой
+    private int cursor = -1;
     private boolean closed = false;
     private boolean wasNull = false;
 
@@ -35,8 +26,6 @@ public class SimpleResultSet implements ResultSet {
         this.parent = parent;
         this.rows = (result.getRows() == null) ? List.of() : new ArrayList<>(result.getRows());
 
-        // Фиксируем порядок колонок: берём ключи первой Row, сортируем алфавитно
-        // (детерминированно между запусками, в отличие от HashMap iteration order).
         if (this.rows.isEmpty()) {
             this.columnNames = List.of();
         } else {
@@ -47,7 +36,7 @@ public class SimpleResultSet implements ResultSet {
 
         this.nameToIdx = new HashMap<>();
         for (int i = 0; i < columnNames.size(); i++) {
-            // case-insensitive lookup
+
             nameToIdx.put(columnNames.get(i).toLowerCase(), i + 1);
         }
 
@@ -71,8 +60,6 @@ public class SimpleResultSet implements ResultSet {
         return java.sql.Types.VARCHAR;
     }
 
-    // навигация
-
     @Override
     public boolean next() throws SQLException {
         checkClosed();
@@ -90,8 +77,6 @@ public class SimpleResultSet implements ResultSet {
     @Override public boolean isAfterLast() { return cursor >= rows.size(); }
     @Override public boolean isFirst() { return cursor == 0; }
     @Override public boolean isLast() { return cursor == rows.size() - 1; }
-
-    //чтение значений
 
     private String rawValue(int columnIndex) throws SQLException {
         checkClosed();
@@ -218,28 +203,24 @@ public class SimpleResultSet implements ResultSet {
         return idx;
     }
 
-    // метаданные
-
     @Override public ResultSetMetaData getMetaData() { return metaData; }
     @Override public Statement getStatement() { return parent; }
     @Override public int findColumn(String columnLabel) throws SQLException { return requireIdx(columnLabel); }
     @Override public String getCursorName() { return null; }
     @Override public SQLWarning getWarnings() { return null; }
-    @Override public void clearWarnings() { /* no-op */ }
+    @Override public void clearWarnings() { }
     @Override public int getRow() { return cursor + 1; }
     @Override public int getType() { return TYPE_FORWARD_ONLY; }
     @Override public int getConcurrency() { return CONCUR_READ_ONLY; }
     @Override public int getHoldability() { return CLOSE_CURSORS_AT_COMMIT; }
     @Override public int getFetchDirection() { return FETCH_FORWARD; }
-    @Override public void setFetchDirection(int direction) { /* no-op */ }
+    @Override public void setFetchDirection(int direction) { }
     @Override public int getFetchSize() { return 0; }
-    @Override public void setFetchSize(int rows) { /* no-op */ }
+    @Override public void setFetchSize(int rows) { }
 
     private void checkClosed() throws SQLException {
         if (closed) throw new SQLException("ResultSet закрыт");
     }
-
-    //заглушки
 
     @Override public void beforeFirst() throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public void afterLast() throws SQLException { throw new SQLFeatureNotSupportedException(); }
@@ -317,7 +298,6 @@ public class SimpleResultSet implements ResultSet {
     @Override public RowId getRowId(String columnLabel) throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public SQLXML getSQLXML(int columnIndex) throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public SQLXML getSQLXML(String columnLabel) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-
 
     @Override public void updateNull(int columnIndex) throws SQLException { ro(); }
     @Override public void updateNull(String columnLabel) throws SQLException { ro(); }

@@ -12,11 +12,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Минимальная реализация DatabaseMetaData.
- * Spring Boot и HikariCP при старте вызывают несколько методов —
- * реализованы реально. Остальные возвращают безопасные заглушки.
- */
 public class SimpleDatabaseMetaData implements DatabaseMetaData {
 
     private final SimpleConnection conn;
@@ -26,8 +21,6 @@ public class SimpleDatabaseMetaData implements DatabaseMetaData {
         this.conn = conn;
         this.url  = url;
     }
-
-    // ---- идентификация ----
 
     @Override public String getDatabaseProductName()    { return "SimpleDB"; }
     @Override public String getDatabaseProductVersion() { return "1.0"; }
@@ -45,8 +38,6 @@ public class SimpleDatabaseMetaData implements DatabaseMetaData {
     @Override public String getSQLKeywords()            { return ""; }
     @Override public String getExtraNameCharacters()    { return ""; }
 
-    // ---- case sensitivity (HikariCP и Spring Boot смотрят на это) ----
-
     @Override public boolean storesUpperCaseIdentifiers()       { return false; }
     @Override public boolean storesLowerCaseIdentifiers()       { return false; }
     @Override public boolean storesMixedCaseIdentifiers()       { return true; }
@@ -55,8 +46,6 @@ public class SimpleDatabaseMetaData implements DatabaseMetaData {
     @Override public boolean storesUpperCaseQuotedIdentifiers() { return false; }
     @Override public boolean storesLowerCaseQuotedIdentifiers() { return false; }
     @Override public boolean storesMixedCaseQuotedIdentifiers() { return true; }
-
-    // ---- возможности (минимальный набор) ----
 
     @Override public boolean isReadOnly()                            { return false; }
     @Override public boolean supportsTransactions()                  { return true; }
@@ -157,8 +146,6 @@ public class SimpleDatabaseMetaData implements DatabaseMetaData {
     @Override public String getSchemaTerm()                          { return "schema"; }
     @Override public String getProcedureTerm()                       { return "procedure"; }
 
-    // ---- лимиты (0 = без ограничений) ----
-
     @Override public int getMaxBinaryLiteralLength()        { return 0; }
     @Override public int getMaxCharLiteralLength()          { return 0; }
     @Override public int getMaxColumnNameLength()           { return 0; }
@@ -181,15 +168,11 @@ public class SimpleDatabaseMetaData implements DatabaseMetaData {
     @Override public int getMaxUserNameLength()             { return 0; }
     @Override public int getDefaultTransactionIsolation()   { return Connection.TRANSACTION_READ_COMMITTED; }
 
-    // ---- системные функции ----
-
     @Override public String getNumericFunctions()   { return ""; }
     @Override public String getStringFunctions()    { return ""; }
     @Override public String getSystemFunctions()    { return ""; }
     @Override public String getTimeDateFunctions()  { return ""; }
     @Override public String getSearchStringEscape() { return "\\"; }
-
-    // ---- ResultSet-ы для метаданных схемы (пустые) ----
 
     private ResultSet emptyRs() {
         return new SimpleResultSet(new ExecutionResult(true, "", List.of()), null);
@@ -343,11 +326,7 @@ public class SimpleDatabaseMetaData implements DatabaseMetaData {
     @Override public ResultSet getFunctionColumns(String c, String s, String f, String col) throws SQLException { return emptyRs(); }
     @Override public ResultSet getPseudoColumns(String c, String s, String t, String col)   throws SQLException { return emptyRs(); }
 
-    // ---- connection ----
-
     @Override public Connection getConnection() { return conn; }
-
-    // ---- Wrapper ----
 
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {

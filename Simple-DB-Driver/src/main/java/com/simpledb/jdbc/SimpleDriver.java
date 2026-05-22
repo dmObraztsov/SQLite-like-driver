@@ -9,12 +9,6 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-/**
- * JDBC-драйвер
- *
- * URL формат: jdbc:simpledb:&lt;dbName&gt;
- * например: jdbc:simpledb:bank
- */
 public class SimpleDriver implements Driver {
 
     public static final String URL_PREFIX = "jdbc:simpledb:";
@@ -33,8 +27,7 @@ public class SimpleDriver implements Driver {
     @Override
     public Connection connect(String url, Properties info) throws SQLException {
         if (!acceptsURL(url)) {
-            // По контракту JDBC: если URL не наш, возвращаем null,
-            // DriverManager перейдёт к следующему драйверу.
+
             return null;
         }
         String dbName = url.substring(URL_PREFIX.length()).trim();

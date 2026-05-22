@@ -13,7 +13,6 @@ import java.util.List;
 public class BinaryFileStorage implements FileStorage {
     private final String basePath;
 
-    // Magic bytes that identify the new columnar binary format ("DBCL")
     private static final byte[] COLUMN_MAGIC = {0x44, 0x42, 0x43, 0x4C};
 
     public BinaryFileStorage(String basePath) {
@@ -97,16 +96,7 @@ public class BinaryFileStorage implements FileStorage {
         }
     }
 
-    /**
-     * Writes a Column using the custom slot-directory binary format.
-     *
-     * Format:
-     *   [4 bytes] magic "DBCL"
-     *   [4 bytes] row count N
-     *   [N * 8 bytes] slot directory: each slot = (int offset_from_data_start, int byte_length)
-     *                 NULL value: both fields = -1
-     *   [variable] data section: concatenated UTF-8 string bytes
-     */
+   
     private void writeColumn(String path, Column col) throws FileStorageException {
         File file = new File(path);
         File parent = file.getParentFile();
@@ -159,10 +149,7 @@ public class BinaryFileStorage implements FileStorage {
         }
     }
 
-    /**
-     * Reads a Column written in the slot-directory format.
-     * Falls back to Java serialization for files in the old format.
-     */
+   
     private Column readColumn(String path) throws FileStorageException {
         File file = new File(path);
 
@@ -219,15 +206,7 @@ public class BinaryFileStorage implements FileStorage {
         }
     }
 
-    /**
-     * In-place update of a single row in a Column file.
-     *
-     * If the new value fits in the existing slot (newLen <= oldLen):
-     *   writes the bytes directly at the old position (O(1) disk writes).
-     * If the new value is larger:
-     *   appends the bytes at the end of the file and updates the slot pointer.
-     *   Old bytes become dead space (no compaction — acceptable for this project).
-     */
+   
     @Override
     public void writeRow(String path, int rowIndex, String newValue) throws FileStorageException {
         File file = new File(path);
@@ -238,7 +217,7 @@ public class BinaryFileStorage implements FileStorage {
             raf.readFully(magic);
 
             if (!Arrays.equals(magic, COLUMN_MAGIC)) {
-                // Old-format file: load, modify, rewrite in new format
+
                 Column col = readColumnLegacy(path);
                 col.getData().set(rowIndex, newValue != null ? newValue : "NULL");
                 writeColumn(path, col);
@@ -270,13 +249,13 @@ public class BinaryFileStorage implements FileStorage {
             int newLen = newBytes.length;
 
             if (oldOffset != -1 && newLen <= oldLen) {
-                // True in-place: new value fits in the existing slot
+
                 raf.seek(dataStart + oldOffset);
                 raf.write(newBytes);
                 raf.seek(slotOffset + 4);
                 raf.writeInt(newLen);
             } else {
-                // Append to end of file, update slot to point there
+
                 long endPos = raf.length();
                 raf.seek(endPos);
                 raf.write(newBytes);

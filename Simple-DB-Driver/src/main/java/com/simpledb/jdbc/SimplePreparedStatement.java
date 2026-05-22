@@ -13,12 +13,6 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 
-/**
- * PreparedStatement поверх нашего движка.
- *
- * Стратегия: храним SQL-шаблон с ?, накапливаем параметры, при execute()
- * заменяем ? на литералы и передаём в SimpleStatement.
- */
 public class SimplePreparedStatement implements PreparedStatement {
 
     private final SimpleConnection conn;
@@ -36,8 +30,6 @@ public class SimplePreparedStatement implements PreparedStatement {
         int count = countPlaceholders(sql);
         for (int i = 0; i < count; i++) params.add(null);
     }
-
-    // ---- параметры ----
 
     @Override public void setNull(int i, int sqlType) { set(i, null); }
     @Override public void setNull(int i, int sqlType, String typeName) { set(i, null); }
@@ -86,8 +78,6 @@ public class SimplePreparedStatement implements PreparedStatement {
         params.set(idx, value);
     }
 
-    // ---- построение SQL ----
-
     private String buildSql() throws SQLException {
         StringBuilder sb = new StringBuilder();
         int paramIdx = 0;
@@ -121,8 +111,6 @@ public class SimplePreparedStatement implements PreparedStatement {
             sb.append('"').append(s.replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
         }
     }
-
-    // ---- execute ----
 
     @Override
     public ResultSet executeQuery() throws SQLException {
@@ -171,8 +159,6 @@ public class SimplePreparedStatement implements PreparedStatement {
         for (int i = 0; i < params.size(); i++) params.set(i, null);
     }
 
-    // ---- состояние ----
-
     @Override public ResultSet getResultSet()       { return currentResultSet; }
     @Override public int getUpdateCount()           { return updateCount; }
     @Override public boolean getMoreResults()       { updateCount = -1; return false; }
@@ -202,8 +188,6 @@ public class SimplePreparedStatement implements PreparedStatement {
         if (closed) throw new SQLException("PreparedStatement закрыт");
     }
 
-    // ---- Statement-методы (для сырого SQL) ----
-
     @Override public ResultSet executeQuery(String sql) throws SQLException {
         return new SimpleStatement(conn).executeQuery(sql);
     }
@@ -222,8 +206,6 @@ public class SimplePreparedStatement implements PreparedStatement {
     @Override public boolean execute(String sql, int x)        throws SQLException { return execute(sql); }
     @Override public boolean execute(String sql, int[] x)      throws SQLException { return execute(sql); }
     @Override public boolean execute(String sql, String[] x)   throws SQLException { return execute(sql); }
-
-    // ---- заглушки ----
 
     @Override public void addBatch()               throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public void addBatch(String sql)     throws SQLException { throw new SQLFeatureNotSupportedException(); }

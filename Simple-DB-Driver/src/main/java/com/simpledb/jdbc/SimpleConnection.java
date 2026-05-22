@@ -11,18 +11,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
-/**
- * <p>JDBC Connection — сессия с БД.
- *
- * <p>Держит DatabaseEngine и реализует semantics auto-commit / commit / rollback
- * поверх engine.beginTransaction / commit / rollback.
- *
- * <p>Auto-commit логика:
- *   - true: каждый executeUpdate сам себе транзакция,
- *           движок пишет напрямую без transactionBuffer.
- *   - false: при первом DML открываем engine.beginTransaction(),
- *            держим до явного commit()/rollback().
- */
 public class SimpleConnection implements Connection {
 
     private final DatabaseEngine engine;
@@ -50,25 +38,23 @@ public class SimpleConnection implements Connection {
         }
     }
 
-    /** Доступ к engine для Statement-уровня — package-private. */
+   
     DatabaseEngine getEngine() {
         return engine;
     }
 
-    /** Открыть транзакцию, если auto-commit выключен и она ещё не открыта. */
+   
     void ensureTransactionIfNeeded() {
         if (!autoCommit && !engine.isTransactionActive()) {
             engine.beginTransaction();
         }
     }
 
-    //ТРАНЗАКЦИИ
-
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {
         checkClosed();
         if (this.autoCommit == autoCommit) return;
-        // При переключении с false → true: коммитим висящую транзакцию.
+
         if (autoCommit && engine.isTransactionActive()) {
             try {
                 engine.commit();
@@ -112,7 +98,6 @@ public class SimpleConnection implements Connection {
         }
     }
 
-
     @Override
     public Statement createStatement() throws SQLException {
         checkClosed();
@@ -129,11 +114,10 @@ public class SimpleConnection implements Connection {
         return createStatement();
     }
 
-
     @Override
     public void close() throws SQLException {
         if (closed) return;
-        // Если транзакция висит то откатываем
+
         if (!autoCommit && engine.isTransactionActive()) {
             engine.rollback();
         }
@@ -153,7 +137,6 @@ public class SimpleConnection implements Connection {
     private void checkClosed() throws SQLException {
         if (closed) throw new SQLException("Connection закрыт");
     }
-
 
     @Override
     public String getCatalog() {
@@ -186,7 +169,7 @@ public class SimpleConnection implements Connection {
 
     @Override
     public void setTransactionIsolation(int level) {
-        //мы умеем только один уровень
+
     }
 
     @Override
@@ -201,8 +184,6 @@ public class SimpleConnection implements Connection {
 
     @Override
     public void clearWarnings() {}
-
-    //заглушки
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
@@ -223,10 +204,10 @@ public class SimpleConnection implements Connection {
     @Override public Savepoint setSavepoint(String name) throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public void rollback(Savepoint savepoint) throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public void releaseSavepoint(Savepoint savepoint) throws SQLException { throw new SQLFeatureNotSupportedException(); }
-    @Override public void setHoldability(int holdability) { /* no-op */ }
+    @Override public void setHoldability(int holdability) { }
     @Override public int getHoldability() { return ResultSet.CLOSE_CURSORS_AT_COMMIT; }
     @Override public Map<String, Class<?>> getTypeMap() { return Map.of(); }
-    @Override public void setTypeMap(Map<String, Class<?>> map) { /* no-op */ }
+    @Override public void setTypeMap(Map<String, Class<?>> map) { }
     @Override public Clob createClob() throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public Blob createBlob() throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public NClob createNClob() throws SQLException { throw new SQLFeatureNotSupportedException(); }
@@ -235,10 +216,10 @@ public class SimpleConnection implements Connection {
     @Override public Struct createStruct(String typeName, Object[] attributes) throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public Properties getClientInfo() { return new Properties(); }
     @Override public String getClientInfo(String name) { return null; }
-    @Override public void setClientInfo(String name, String value) { /* no-op */ }
-    @Override public void setClientInfo(Properties properties) { /* no-op */ }
+    @Override public void setClientInfo(String name, String value) { }
+    @Override public void setClientInfo(Properties properties) { }
     @Override public void abort(Executor executor) { closed = true; }
-    @Override public void setNetworkTimeout(Executor executor, int milliseconds) { /* no-op */ }
+    @Override public void setNetworkTimeout(Executor executor, int milliseconds) { }
     @Override public int getNetworkTimeout() { return 0; }
 
     @Override

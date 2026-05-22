@@ -49,7 +49,7 @@ public class ColumnIndex implements Serializable {
                 else if (r > deletedRow) {
                     newRows.add(r - 1);
                 }
-                // r == deletedRow уже удалён через removeEntry
+
             }
             if (!newRows.isEmpty()) {
                 rebuilt.put(e.getKey(), newRows);

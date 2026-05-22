@@ -9,9 +9,6 @@ import java.sql.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * JDBC Statement — выполнение SQL.
- */
 public class SimpleStatement implements Statement {
 
     private static final Pattern AFFECTED_ROWS = Pattern.compile("^(\\d+) row");
@@ -30,8 +27,6 @@ public class SimpleStatement implements Statement {
         this.conn = conn;
         this.engine = conn.getEngine();
     }
-
-    //execute
 
     @Override
     public boolean execute(String sql) throws SQLException {
@@ -99,18 +94,13 @@ public class SimpleStatement implements Statement {
         }
     }
 
-    /**
-     * SELECT возвращает rows, агрегаты тоже возвращают rows.
-     */
+   
     private boolean isSelectLike(String sql) {
         String trimmed = sql.trim().toUpperCase();
         return trimmed.startsWith("SELECT");
     }
 
-    /**
-     * Движок возвращает сообщение вида "3 row(s) deleted from ..." или
-     * "Row inserted into ...". Для INSERT всегда 1, для UPDATE/DELETE парсим число.
-     */
+   
     private int parseAffectedRows(String message) {
         if (message == null){
             return 0;
@@ -124,8 +114,6 @@ public class SimpleStatement implements Statement {
         }
         return 0;
     }
-
-    // state/результаты
 
     @Override public ResultSet getResultSet() { return currentResultSet; }
     @Override public int getUpdateCount() { return updateCount; }
@@ -148,7 +136,6 @@ public class SimpleStatement implements Statement {
             throw new SQLException("Statement закрыт");
         }
     }
-
 
     @Override public int getMaxRows() { return maxRows; }
     @Override public void setMaxRows(int max) { this.maxRows = max; }
@@ -173,7 +160,6 @@ public class SimpleStatement implements Statement {
     @Override public void closeOnCompletion() {}
     @Override public boolean isCloseOnCompletion() { return false; }
 
-    //batch нет у нас
     @Override public void addBatch(String sql) throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public void clearBatch() throws SQLException { throw new SQLFeatureNotSupportedException(); }
     @Override public int[] executeBatch() throws SQLException { throw new SQLFeatureNotSupportedException(); }

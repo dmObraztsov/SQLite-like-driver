@@ -41,6 +41,15 @@ tasks.register('buildDependencies') {
     dependsOn generateGrammarSource, compileJava
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += "--enable-preview"
+    options.release = 17
+}
+
+tasks.withType(Test).configureEach {
+    jvmArgs += "--enable-preview"
+}
+
 compileJava.dependsOn generateGrammarSource
 
 publishing {

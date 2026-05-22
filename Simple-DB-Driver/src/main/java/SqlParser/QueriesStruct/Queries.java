@@ -13,21 +13,17 @@ public class Queries {
 
     public record OrderByItem(String col, boolean asc) {}
 
-    /** Specification for one JOIN clause. */
+   
     public record JoinSpec(
             String tableName,
             String alias,
-            String leftKey,    // fully-qualified key in accumulated rows (e.g. "flight_passengers.document_number")
-            String rightKey,   // bare column name in the right table (e.g. "document_number")
+            String leftKey,
+            String rightKey,
             boolean isLeftJoin
     ) {}
 
-    /** Specification for one aggregate function in SELECT. */
+   
     public record AggSpec(String func, String col, String alias) {}
-
-    // =========================================================
-    // DDL / transaction queries (unchanged)
-    // =========================================================
 
     public record CreateDataBaseQuery(String databaseName, boolean ifNotExists) implements QueryInterface {
         public CreateDataBaseQuery(String databaseName) { this(databaseName, false); }
@@ -85,10 +81,6 @@ public class Queries {
         }
     }
 
-    // =========================================================
-    // SELECT: simple (no aggregates, no joins)
-    // =========================================================
-
     public record SelectDataQuery(List<String> selectCols, boolean isStar, String tableName,
                                   WhereCondition where, boolean isDistinct,
                                   List<OrderByItem> orderBy,
@@ -124,10 +116,6 @@ public class Queries {
                     applyLimitOffset(multiSort(applyAliases(results, aliases), orderBy), limit, offset));
         }
     }
-
-    // =========================================================
-    // SELECT: GROUP BY (legacy single-column, single-aggregate path)
-    // =========================================================
 
     public record GroupBySelectQuery(String tableName, String groupByCol,
                                      String aggFunc, String aggCol,
@@ -168,10 +156,6 @@ public class Queries {
                     applyLimitOffset(multiSort(aliased, orderBy), limit, offset));
         }
     }
-
-    // =========================================================
-    // SELECT: JOIN (legacy 2-table path kept for compatibility)
-    // =========================================================
 
     public record JoinTableQuery(String table1Name, List<String> columns1,
                                   String table2Name, List<String> columns2,
@@ -241,11 +225,6 @@ public class Queries {
         }
     }
 
-    // =========================================================
-    // SELECT: AdvancedSelectQuery – handles joins, multi-agg
-    //         GROUP BY, column aliases, ORDER BY alias, etc.
-    // =========================================================
-
     public record AdvancedSelectQuery(
             String baseTable,
             String baseAlias,
@@ -266,18 +245,15 @@ public class Queries {
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception {
 
-            // 1. Load base table rows
             List<Row> rows;
             if (joins.isEmpty()) {
-                // No joins: unqualified row keys are fine
+
                 rows = engine.select(baseTable, null, true, null, false, null, true);
             } else {
-                // With joins: qualify all keys with "alias." (or tableName if no alias)
+
                 rows = loadQualified(engine, baseTable, baseAlias);
             }
 
-            // 2. Apply joins (inner / left)
-            // Use alias as key prefix so the same table joined twice (different aliases) stays distinct.
             for (JoinSpec js : joins) {
                 List<Row> rightRows = engine.select(js.tableName(), null, true, null, false, null, true);
                 List<Row> newRows = new ArrayList<>();
@@ -303,18 +279,16 @@ public class Queries {
                 rows = newRows;
             }
 
-            // 3. Apply WHERE
             if (where != null) {
                 rows = engine.applyWhereToJoinedRows(where, rows);
             }
 
-            // 4. Compute result rows
             List<Row> result;
             if (!aggregates.isEmpty() && groupByCols.isEmpty()) {
-                // Scalar aggregates (e.g. COUNT(*) AS total)
+
                 result = computeScalarAggregates(rows);
             } else if (!groupByCols.isEmpty()) {
-                // GROUP BY
+
                 result = computeGroupBy(rows);
                 if (having != null) {
                     result = result.stream()
@@ -322,11 +296,10 @@ public class Queries {
                             .collect(Collectors.toList());
                 }
             } else {
-                // Plain projection
+
                 result = project(rows);
             }
 
-            // 5. Sort – ORDER BY may use qualified names or aliases; resolve lazily
             if (!orderBy.isEmpty() && !result.isEmpty()) {
                 Row sample = result.get(0);
                 Comparator<Row> comp = null;
@@ -342,14 +315,12 @@ public class Queries {
                 }
             }
 
-            // 6. DISTINCT + LIMIT
             if (isDistinct) result = new ArrayList<>(new LinkedHashSet<>(result));
             result = applyLimitOffset(result, limit, offset);
 
             return new ExecutionResult(true, "Query completed.", result);
         }
 
-        // Load all rows from a table, pre-qualifying keys as "alias.column" (or tableName.column)
         private List<Row> loadQualified(DatabaseEngine engine, String tableName, String alias) throws Exception {
             List<Row> raw = engine.select(tableName, null, true, null, false, null, true);
             String prefix = (alias != null ? alias : tableName) + ".";
@@ -362,13 +333,12 @@ public class Queries {
             return qualified;
         }
 
-        // Lookup value by key; falls back to unqualified if qualified not found
         private String rowGet(Row row, String key) {
             String v = row.get(key);
             if (v != null) return v;
             int dot = key.lastIndexOf('.');
             if (dot >= 0) return row.get(key.substring(dot + 1));
-            // Try suffix match for "anyTable.key"
+
             String suffix = "." + key;
             return row.getValuesMap().entrySet().stream()
                     .filter(e -> e.getKey().endsWith(suffix))
@@ -376,7 +346,6 @@ public class Queries {
                     .findFirst().orElse(null);
         }
 
-        // Compute GROUP BY: groups rows, computes aggregates, returns one row per group
         private List<Row> computeGroupBy(List<Row> rows) {
             Map<String, List<Row>> groups = new LinkedHashMap<>();
 
@@ -394,14 +363,12 @@ public class Queries {
             for (List<Row> grp : groups.values()) {
                 Map<String, String> out = new LinkedHashMap<>();
 
-                // GROUP BY column values → use alias if provided, else unqualified key
                 for (String col : groupByCols) {
                     String alias = colAliases.get(col);
                     String key = alias != null ? alias : unqualify(col);
                     out.put(key, rowGet(grp.get(0), col));
                 }
 
-                // Aggregate results
                 for (AggSpec agg : aggregates) {
                     out.put(agg.alias(), computeAgg(agg.func(), agg.col(), grp));
                 }
@@ -410,7 +377,6 @@ public class Queries {
             return result;
         }
 
-        // Scalar aggregates: no GROUP BY, compute over all rows
         private List<Row> computeScalarAggregates(List<Row> rows) {
             Map<String, String> out = new LinkedHashMap<>();
             for (AggSpec agg : aggregates) {
@@ -419,10 +385,9 @@ public class Queries {
             return List.of(new Row(out));
         }
 
-        // Project regular columns (no GROUP BY)
         private List<Row> project(List<Row> rows) {
             if (isStar && regularCols.isEmpty()) {
-                // SELECT * – strip all table prefixes
+
                 List<Row> out = new ArrayList<>(rows.size());
                 for (Row r : rows) {
                     Map<String, String> m = new LinkedHashMap<>();
@@ -445,7 +410,6 @@ public class Queries {
             return out;
         }
 
-        // Compute one aggregate function over a list of rows
         private String computeAgg(String func, String col, List<Row> rows) {
             if ("COUNT".equals(func)) {
                 if (col == null || "*".equals(col)) return String.valueOf(rows.size());
@@ -462,7 +426,7 @@ public class Queries {
                     .collect(Collectors.toList());
 
             if (nums.isEmpty()) {
-                // Fall back to lexicographic MIN/MAX for non-numeric columns (e.g. dates)
+
                 List<String> strs = rows.stream()
                         .map(r -> rowGet(r, col))
                         .filter(Objects::nonNull)
@@ -488,19 +452,17 @@ public class Queries {
                     ? String.valueOf((long) v) : String.valueOf(v);
         }
 
-        // Strip "tableName." prefix
         private String unqualify(String col) {
             int dot = col.lastIndexOf('.');
             return dot >= 0 ? col.substring(dot + 1) : col;
         }
 
-        // Resolve ORDER BY key: direct → alias → unqualified
         private String resolveOrderKey(String col, Row sample) {
             if (sample.get(col) != null) return col;
-            // Try the alias that was declared for this column
+
             String aliased = colAliases.get(col);
             if (aliased != null && sample.get(aliased) != null) return aliased;
-            // Try unqualified (strip table/alias prefix)
+
             int dot = col.lastIndexOf('.');
             if (dot >= 0) {
                 String unq = col.substring(dot + 1);
@@ -555,10 +517,6 @@ public class Queries {
             return true;
         }
     }
-
-    // =========================================================
-    // Scalar aggregate queries (legacy, kept for simple cases)
-    // =========================================================
 
     public record CountQuery(String tableName, String columnName, WhereCondition where, String alias) implements QueryInterface {
         public CountQuery(String tableName, String columnName, WhereCondition where) {
@@ -625,15 +583,12 @@ public class Queries {
         }
     }
 
-    // =========================================================
-    // DML queries
-    // =========================================================
-
     public record DeleteTableQuery(String tableName, WhereCondition where) implements QueryInterface {
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
             int del = engine.delete(tableName, where);
-            return new ExecutionResult(true, del + " row(s) deleted from '" + tableName + "'.");
+            String msg = del == 0 ? "No matching rows found." : del + " row(s) deleted from '" + tableName + "'.";
+            return new ExecutionResult(true, msg);
         }
     }
 
@@ -642,13 +597,10 @@ public class Queries {
         @Override
         public ExecutionResult execute(DatabaseEngine engine) throws Exception, FileStorageException {
             int upd = engine.update(tableName, setValues, where);
-            return new ExecutionResult(true, upd + " row(s) updated in '" + tableName + "'.");
+            String msg = upd == 0 ? "No matching rows found." : upd + " row(s) updated in '" + tableName + "'.";
+            return new ExecutionResult(true, msg);
         }
     }
-
-    // =========================================================
-    // Transaction queries
-    // =========================================================
 
     public record BeginTransactionQuery() implements QueryInterface {
         @Override public ExecutionResult execute(DatabaseEngine engine) {
@@ -670,10 +622,6 @@ public class Queries {
             return new ExecutionResult(true, "Transaction rolled back.");
         }
     }
-
-    // =========================================================
-    // ALTER TABLE queries
-    // =========================================================
 
     public record AlterTableAddColumnQuery(String tableName, ColumnMetadata column) implements QueryInterface {
         @Override public ExecutionResult execute(DatabaseEngine engine) throws Exception {
@@ -702,10 +650,6 @@ public class Queries {
             return new ExecutionResult(true, "Table renamed.");
         }
     }
-
-    // =========================================================
-    // Shared utilities
-    // =========================================================
 
     static List<Row> applyLimitOffset(List<Row> rows, int limit, int offset) {
         if (limit < 0 && offset <= 0) return rows;

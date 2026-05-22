@@ -35,8 +35,6 @@ public class ClientHandler implements Runnable {
         } catch (Exception ignored) {}
     }
 
-    // ── startup ──────────────────────────────────────────────────────────────
-
     private boolean doStartup(DataInputStream in, DataOutputStream out) throws IOException {
         while (true) {
             int len      = in.readInt();
@@ -44,7 +42,7 @@ public class ClientHandler implements Runnable {
             byte[] rest  = new byte[Math.max(0, len - 8)];
             in.readFully(rest);
 
-            if (protocol == 80877103) {   // SSLRequest — reject without closing
+            if (protocol == 80877103) {
                 out.write('N');
                 out.flush();
                 continue;
@@ -65,8 +63,6 @@ public class ClientHandler implements Runnable {
         return true;
     }
 
-    // ── message loop ─────────────────────────────────────────────────────────
-
     private void messageLoop(DataInputStream in, DataOutputStream out) throws IOException {
         while (true) {
             int type = in.read();
@@ -79,18 +75,16 @@ public class ClientHandler implements Runnable {
             switch ((char) type) {
                 case 'Q' -> handleSimpleQuery(body, out);
                 case 'X' -> { return; }
-                // Extended query protocol stubs (psycopg2 may use these)
-                case 'P' -> { writeMsg(out, '1', new byte[0]); out.flush(); }  // ParseComplete
-                case 'B' -> { writeMsg(out, '2', new byte[0]); out.flush(); }  // BindComplete
-                case 'D' -> { /* Describe – skip */ }
+
+                case 'P' -> { writeMsg(out, '1', new byte[0]); out.flush(); }
+                case 'B' -> { writeMsg(out, '2', new byte[0]); out.flush(); }
+                case 'D' -> { }
                 case 'E' -> { writeCommandComplete(out, ""); writeReadyForQuery(out); out.flush(); }
-                case 'S' -> { writeReadyForQuery(out); out.flush(); }          // Sync
-                default  -> { /* ignore unknown */ }
+                case 'S' -> { writeReadyForQuery(out); out.flush(); }
+                default  -> { }
             }
         }
     }
-
-    // ── simple query ─────────────────────────────────────────────────────────
 
     private void handleSimpleQuery(byte[] body, DataOutputStream out) throws IOException {
         String sql = stripNull(body).trim();
@@ -110,7 +104,6 @@ public class ClientHandler implements Runnable {
             return;
         }
 
-        // Pass through BEGIN/COMMIT/ROLLBACK without touching engine transaction state
         if (upper.equals("BEGIN") || upper.startsWith("BEGIN ")
                 || upper.startsWith("BEGIN;")
                 || upper.equals("COMMIT") || upper.startsWith("COMMIT;")
@@ -150,8 +143,6 @@ public class ClientHandler implements Runnable {
         out.flush();
     }
 
-    // ── result serialisation ─────────────────────────────────────────────────
-
     private void sendSelectResult(DataOutputStream out, List<Row> rows) throws IOException {
         if (rows.isEmpty()) {
             writeEmptyRowDescription(out);
@@ -179,7 +170,7 @@ public class ClientHandler implements Runnable {
                 seen = true;
                 try {
                     long n = Long.parseLong(v);
-                    // Only use OID_INT4 for values that fit in a 32-bit signed integer
+
                     if (n < Integer.MIN_VALUE || n > Integer.MAX_VALUE) { allInt = false; break; }
                 } catch (NumberFormatException e) {
                     allInt = false; break;
@@ -189,8 +180,6 @@ public class ClientHandler implements Runnable {
         }
         return oids;
     }
-
-    // ── low-level writers ────────────────────────────────────────────────────
 
     private void writeAuthOk(DataOutputStream out) throws IOException {
         out.write('R'); out.writeInt(8); out.writeInt(0);
@@ -234,12 +223,12 @@ public class ClientHandler implements Runnable {
         out.writeShort(cols.size());
         for (int i = 0; i < cols.size(); i++) {
             out.write(names.get(i));
-            out.writeInt(0);                                    // table OID
-            out.writeShort(0);                                  // attribute number
-            out.writeInt(oids[i]);                              // data-type OID
-            out.writeShort(oids[i] == OID_INT4 ? 4 : -1);     // type size
-            out.writeInt(-1);                                   // type modifier
-            out.writeShort(0);                                  // format (text)
+            out.writeInt(0);
+            out.writeShort(0);
+            out.writeInt(oids[i]);
+            out.writeShort(oids[i] == OID_INT4 ? 4 : -1);
+            out.writeInt(-1);
+            out.writeShort(0);
         }
     }
 
@@ -267,8 +256,8 @@ public class ClientHandler implements Runnable {
     }
 
     private void writeError(DataOutputStream out, String message) throws IOException {
-        byte[] sev  = "SERROR\0".getBytes(StandardCharsets.UTF_8);   // field 'S'
-        byte[] code = "C42000\0".getBytes(StandardCharsets.UTF_8);   // field 'C' SQLSTATE
+        byte[] sev  = "SERROR\0".getBytes(StandardCharsets.UTF_8);
+        byte[] code = "C42000\0".getBytes(StandardCharsets.UTF_8);
         byte[] msg  = ("M" + message + "\0").getBytes(StandardCharsets.UTF_8);
         int    len  = 4 + sev.length + code.length + msg.length + 1;
         out.write('E'); out.writeInt(len);
@@ -279,14 +268,12 @@ public class ClientHandler implements Runnable {
         out.write(type); out.writeInt(4 + body.length); out.write(body);
     }
 
-    // ── helpers ───────────────────────────────────────────────────────────────
-
-    /** Null-terminated UTF-8 bytes for a string. */
+   
     private static byte[] nts(String s) {
         return (s + '\0').getBytes(StandardCharsets.UTF_8);
     }
 
-    /** Strip trailing null byte from a query body. */
+   
     private static String stripNull(byte[] body) {
         int len = body.length;
         if (len > 0 && body[len - 1] == 0) len--;

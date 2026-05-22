@@ -79,18 +79,16 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
 
     @Override
     public QueryInterface visitSelectStatement(SQLParser.SelectStatementContext ctx) {
-        // --- Extract base table and optional alias ---
+
         String baseTable = ctx.tablename().identifier(0).getText();
         String baseAlias = ctx.tablename().identifier().size() > 1
                 ? ctx.tablename().identifier(1).getText() : null;
 
         boolean isDistinct = ctx.DISTINCT() != null;
 
-        // Build alias → real table map
         Map<String, String> aliasMap = new LinkedHashMap<>();
         aliasMap.put(baseAlias != null ? baseAlias : baseTable, baseTable);
 
-        // --- Parse JOIN clauses ---
         List<SQLParser.JoinClauseContext> joinCtxs = ctx.joinClause();
         boolean hasJoins = !joinCtxs.isEmpty();
 
@@ -106,7 +104,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             joinSpecs.add(new Queries.JoinSpec(jtName, jtAlias, pair[0], pair[1], isLeft));
         }
 
-        // --- Parse SELECT list ---
         List<SQLParser.SelectColContext> selectColCtxs = ctx.selectCols().selectCol();
         boolean isStar = ctx.selectCols().STAR() != null;
 
@@ -133,13 +130,11 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             }
         }
 
-        // --- Parse WHERE (always preserve full qualified names) ---
         WhereCondition where = extractWhere(ctx.whereClause());
         if (where != null && (hasJoins || baseAlias != null)) {
             where = normalizeWhere(where, aliasMap);
         }
 
-        // --- Parse GROUP BY ---
         List<String> groupByCols = new ArrayList<>();
         WhereCondition having = null;
         if (ctx.groupByClause() != null) {
@@ -151,7 +146,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             }
         }
 
-        // --- Parse ORDER BY ---
         List<Queries.OrderByItem> orderBy = new ArrayList<>();
         if (ctx.orderByClause() != null) {
             for (SQLParser.OrderByItemContext item : ctx.orderByClause().orderByItem()) {
@@ -161,7 +155,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             }
         }
 
-        // --- Parse LIMIT ---
         int limit = -1, offset = 0;
         if (ctx.limitClause() != null) {
             limit = Integer.parseInt(ctx.limitClause().NUMBER(0).getText());
@@ -170,10 +163,9 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             }
         }
 
-        // --- Routing ---
         boolean needsAdvanced = hasJoins
                 || baseAlias != null
-                || !aggSpecs.isEmpty()
+                || aggSpecs.size() > 1
                 || groupByCols.size() > 1;
 
         if (needsAdvanced) {
@@ -185,9 +177,8 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             );
         }
 
-        // --- Legacy routing for simple cases ---
         if (!groupByCols.isEmpty() && !aggSpecs.isEmpty()) {
-            // Single GROUP BY + single aggregate (old path)
+
             String groupByCol = groupByCols.get(0);
             Queries.AggSpec agg = aggSpecs.get(0);
             Map<String, String> aliases = new LinkedHashMap<>();
@@ -214,7 +205,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             };
         }
 
-        // Simple SELECT
         List<String> columns = isStar ? null : new ArrayList<>(regularCols);
         Map<String, String> aliases = new LinkedHashMap<>(colAliases);
         return new Queries.SelectDataQuery(
@@ -222,7 +212,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         );
     }
 
-    // --- Helper: extract the join key pair from the ON condition ---
     private String[] extractJoinKeyPair(SQLParser.ConditionContext cond, Map<String, String> aliasMap) {
         SQLParser.AndConditionContext andCond = cond.orCondition().andCondition(0);
         SQLParser.PredicateContext pred = andCond.predicate(0);
@@ -230,30 +219,22 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         SQLParser.ColumnRefContext leftRef  = pred.operand(0).columnRef();
         SQLParser.ColumnRefContext rightRef = pred.operand(1).columnRef();
 
-        // left key: fully qualified real name (e.g. "flight_passengers.document_number")
         String leftKey = resolveColRef(leftRef, aliasMap);
 
-        // right key: just the column name part from the right table
         String rightKey = rightRef.identifier().get(rightRef.identifier().size() - 1).getText();
 
         return new String[]{leftKey, rightKey};
     }
 
-    // --- Helper: resolve a columnRef ---
-    // Returns "alias.column" (keeps alias as-is) so that the same table joined twice
-    // with different aliases (a1, a2) produces distinct row keys.
-    // The engine's resolveQualified() handles suffix-based lookup as a fallback.
     private String resolveColRef(SQLParser.ColumnRefContext cref, Map<String, String> aliasMap) {
         if (cref.identifier().size() == 2) {
             String tablePart = cref.identifier(0).getText();
             String colPart   = cref.identifier(1).getText();
-            return tablePart + "." + colPart;   // keep alias prefix, not real table name
+            return tablePart + "." + colPart;
         }
         return cref.identifier(0).getText();
     }
 
-    // --- Helper: normalize WHERE condition ---
-    // Column references keep their alias prefix; the engine resolves by exact or suffix match.
     private WhereCondition normalizeWhere(WhereCondition cond, Map<String, String> aliasMap) {
         return switch (cond) {
             case WhereCondition.Simple s -> new WhereCondition.Simple(
@@ -278,13 +259,9 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
     }
 
     private String normalizeCol(String name, Map<String, String> aliasMap) {
-        // Keep alias prefix unchanged; resolveQualified() in the engine does suffix lookup.
+
         return name;
     }
-
-    // =========================================================
-    // Remaining visitors (unchanged)
-    // =========================================================
 
     @Override
     public QueryInterface visitAlterTableStatement(SQLParser.AlterTableStatementContext ctx) {
@@ -353,10 +330,6 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         WhereCondition where = extractWhere(ctx.whereClause());
         return new Queries.UpdateTableQuery(tableName, setValues, where);
     }
-
-    // =========================================================
-    // WHERE / condition parsing
-    // =========================================================
 
     private WhereCondition extractWhere(SQLParser.WhereClauseContext whereClause) {
         if (whereClause == null) return null;
@@ -457,11 +430,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         return op.getText();
     }
 
-    // =========================================================
-    // Column / metadata helpers
-    // =========================================================
-
-    /** Returns the full column name: "table.col" if qualified, "col" if not. */
+   
     private String toFullColumnName(SQLParser.ColumnRefContext columnRef) {
         if (columnRef.identifier().size() == 2) {
             return columnRef.identifier(0).getText() + "." + columnRef.identifier(1).getText();
@@ -469,7 +438,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
         return columnRef.identifier(0).getText();
     }
 
-    /** Returns only the column name part (strips table prefix). */
+   
     private String toUnqualifiedColumnName(SQLParser.ColumnRefContext columnRef) {
         if (columnRef.identifier().size() == 1) {
             return columnRef.identifier(0).getText();
@@ -517,7 +486,7 @@ public class AntlrParser extends SQLBaseVisitor<QueryInterface> {
             } else if (constraintContext.uniqueConstraint() != null) {
                 constraints.add(Constraints.UNIQUE);
             } else if (constraintContext.nullConstraint() != null) {
-                // explicit NULL — no constraint stored
+
             } else if (constraintContext.checkConstraint() != null) {
                 constraints.add(Constraints.CHECK);
                 checkExpression = constraintContext.checkConstraint().condition().getText();

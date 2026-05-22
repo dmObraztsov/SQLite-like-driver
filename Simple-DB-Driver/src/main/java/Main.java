@@ -36,7 +36,6 @@ public class Main {
         FileManager       manager  = new FileManager(storage);
         DatabaseEngine    engine   = new DatabaseEngine(manager);
 
-        // create & select database (ignore AlreadyExists)
         try { engine.createDatabase(dbName); } catch (Exception ignored) {}
         engine.setCurrentDatabase(dbName);
 
@@ -49,13 +48,10 @@ public class Main {
         new PostgresServer(port, engine).start();
     }
 
-    // ── schema loader ────────────────────────────────────────────────────────
-
     private static void loadSql(String path, DatabaseEngine engine) throws Exception {
         String content = Files.readString(Path.of(path));
         List<String> stmts = splitStatements(content);
 
-        // Execute DDL first (DROP TABLE, CREATE TABLE, ALTER TABLE, USE, etc.)
         for (String stmt : stmts) {
             String upper = stmt.trim().toUpperCase(Locale.ROOT);
             if (upper.startsWith("INSERT")) continue;
@@ -67,7 +63,6 @@ public class Main {
             }
         }
 
-        // Execute all INSERTs in a single transaction for bulk-load speed
         List<String> inserts = stmts.stream()
                 .filter(s -> s.trim().toUpperCase(Locale.ROOT).startsWith("INSERT"))
                 .toList();
