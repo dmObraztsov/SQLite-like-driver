@@ -1,181 +1,210 @@
-# SQLite-like-driver
+# SQLite-like Driver
 
-Данный групповой проект посвящен разработке собственной базы данных, похожей на SQLite. Продукт предназначен для хранения, извлечения и изменения данных в виде таблиц. Итоговая цель проекта - реализация собственного JDBC-драйвера, работающего с колоночной архитектурой SQLite.
-
+Групповой проект - собственная реляционная база данных с колоночным бинарным хранилищем.
 ## Авторы
+
 - Сидоренко Софья, гр. 24215
 - Мункуев Владислав, гр. 24215
 - Образцов Дмитрий, гр. 24214
 - Романенко Никита, гр. 24214
 
-## Требования 
+## Требования
 
 - Java 17 или выше
 - Gradle Wrapper (входит в репозиторий, отдельная установка Gradle не требуется)
 
 ## Сборка проекта
 
-На данном этапе для сборки проекта необходимо проделать следующие шаги: 
-- Сгенерируйте файлы грамматики ANTLR (Linux / macOS):
-
 ```bash
-./gradlew generateGrammarSource
-```
-Или для Windows:
+# Linux / macOS
+./gradlew shadowJar
 
-```bash
-gradlew.bat generateGrammarSource
-```
-- Соберите проект:
-
-```bash
-./gradlew clean build
-```
-Или для Windows:
-
-```bash
-gradlew.bat clean build
+# Windows
+gradlew.bat shadowJar
 ```
 
-## Запуск проекта
+Собранный fat-jar появится в `build/libs/Simple-DB-Driver-1.0-SNAPSHOT.jar`.
 
-После сборки проект запускается как консольное приложение и принимает SQL-запросы из стандартного ввода.
-
-Запуск через Gradle (Linux / macOS):
+## Запуск тестов
 
 ```bash
-./gradlew run
+./gradlew test
 ```
 
-Для Windows:
+## Функционал
 
-```bash
-gradlew.bat run
+### DDL - работа с базами данных
+
+```sql
+CREATE DATABASE db_name
+DROP DATABASE db_name
+USE db_name
 ```
 
-## Функционал 
+### DDL - работа с таблицами
 
-После запуска приложения можно вводить SQL-команды.
-
-- Работа с базами данных:
-    - `CREATE DATABASE db_name` - создание базы данных
-    - `DROP DATABASE db_name` - удаление базы данных
-    - `USE db_name` - подключение к базе данных
-
-- Работа с таблицами: 
-    - `CREATE TABLE table_name ( column1 DataType [CONSTRAINTS], column2 DataType [CONSTRAINTS], ...)` - создание таблицы
-    - `DROP TABLE table_name` - удаление таблицы
-    - `ALTER TABLE table_name RENAME TO new_table_name` - переименование таблицы
-
-- Работа со столбцами:
-    - `ALTER TABLE table_name ADD COLUMN column_definition` - добавление столбца 
-    - `ALTER TABLE table_name DROP COLUMN column_name` - удаление столбца 
-    - `ALTER TABLE table_name RENAME COLUMN old_name TO new_name` - переименование столбца
-
-- Вставка данных: 
-    - `INSERT INTO table_name VALUES (…)` - вставка строки в таблицу
-
-- Выбор данных:
-    - `SELECT * FROM table_name` - выбор всех данных из таблицы (всех колонок)
-    - `SELECT column1, column2 FROM table_name` - выбор столбцов 
-    - `SELECT column1, column2 FROM table_name WHERE column = value` - выбор с условием
-
-## Пример работы
-
-После запуска приложения можно вводить SQL-команды.
-
-Создание и выбор базы данных:
-```bash
-CREATE DATABASE testDB
-USE testDB
-```
-
-Создание таблицы:
-```bash
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    age INTEGER
+```sql
+CREATE TABLE table_name (
+    column1 DataType [CONSTRAINTS],
+    column2 DataType [CONSTRAINTS],
+    ...
 )
+
+DROP TABLE [IF EXISTS] table_name
+ALTER TABLE table_name RENAME TO new_name
+ALTER TABLE table_name ADD COLUMN column_definition
+ALTER TABLE table_name DROP COLUMN column_name
+ALTER TABLE table_name RENAME COLUMN old_name TO new_name
 ```
 
-Добавление столбца:
-```bash
-ALTER TABLE users ADD COLUMN email TEXT
+### DML - изменение данных
+
+```sql
+INSERT INTO table_name (col1, col2, ...) VALUES (val1, val2, ...)
+INSERT INTO table_name VALUES (val1, val2, ...)
+
+UPDATE table_name SET col = value [WHERE condition]
+
+DELETE FROM table_name [WHERE condition]
 ```
 
-Удаление столбца:
-```bash
-ALTER TABLE users DROP COLUMN email
+### SELECT - выборка данных
+
+```sql
+
+SELECT * FROM table_name
+SELECT col1, col2 FROM table_name [WHERE condition]
+
+SELECT ... ORDER BY col [ASC|DESC] [LIMIT n [OFFSET m]]
+
+SELECT DISTINCT col FROM table_name
+
+SELECT COUNT(*), SUM(col), AVG(col), MIN(col), MAX(col) FROM table_name
+
+SELECT col, COUNT(*) FROM table_name
+GROUP BY col
+[HAVING condition]
+
+SELECT ... FROM t1 [LEFT | INNER] JOIN t2 ON t1.col = t2.col
 ```
 
-Удаление таблицы:
-```bash
-DROP TABLE users
+### WHERE — условия
+
+```sql
+WHERE col = value
+WHERE col > value AND col2 < value
+WHERE col IN (val1, val2, ...)
+WHERE col BETWEEN val1 AND val2
+WHERE col LIKE 'pattern%'
+WHERE col IS [NOT] NULL
 ```
 
-Удаление базы данных:
-```bash
-DROP DATABASE testDB
+### Constraints
+
+| Ограничение | Описание |
+|---|---|
+| `PRIMARY KEY` | Уникальный ненулевой идентификатор строки |
+| `NOT NULL` | Запрет NULL-значений |
+| `UNIQUE` | Уникальность значений в колонке |
+| `DEFAULT value` | Значение по умолчанию |
+| `AUTOINCREMENT` | Автоматически увеличиваемое целое число |
+| `CHECK (expr)` | Проверка условия при вставке/обновлении |
+
+### TCL — транзакции
+
+```sql
+BEGIN TRANSACTION
+COMMIT
+ROLLBACK
 ```
+
+Транзакции реализованы через WAL (Write-Ahead Logging): до применения изменений исходное состояние колонок сохраняется на диск, что обеспечивает корректное восстановление после сбоев.
+
+## Формат хранения данных
+
+Каждая колонка таблицы хранится в отдельном бинарном файле. Формат файла:
+
+- **Заголовок**: magic bytes `DBCL` + количество строк (4 байта)
+- **Таблица смещений**: для каждой строки — пара `(offset, length)`
+- **Секция данных**: значения в кодировке UTF-8
+
+Такой формат позволяет при SELECT читать только файлы нужных колонок, не загружая лишние данные.
+
+## Индексация
+
+Хеш-индексация на базе `HashMap<String, List<Integer>>`: каждому значению колонки соответствует список номеров строк. Индекс ускоряет поиск по точному совпадению и автоматически обновляется при изменении данных.
 
 ## Структура проекта
 
-Simple-DB-Driver/
+```
+src/main/java/
+├── Exceptions/                  # Пользовательские исключения
+├── FileWork/
+│   ├── Binary/
+│   │   └── BinaryFileStorage.java   # Бинарное колоночное хранилище
+│   ├── Index/
+│   │   └── ColumnIndex.java         # Хеш-индекс по колонке
+│   ├── JSON/                        # JSON-хранилище (альтернативная реализация)
+│   ├── Metadata/                    # Метаданные БД, таблиц и колонок
+│   ├── WAL/
+│   │   └── WalEntry.java            # Запись журнала транзакций
+│   ├── FileManager.java             # Основной слой работы с БД
+│   ├── FileStorage.java             # Интерфейс хранилища
+│   └── PathManager.java             # Генерация путей к файлам
+├── SqlParser/
+│   ├── Antlr/
+│   │   ├── AntlrParser.java         # Обход дерева разбора, построение запросов
+│   │   └── SQLProcessor.java        # Фасад: строка SQL → QueryInterface
+│   └── QueriesStruct/
+│       ├── Queries.java             # Все типы запросов
+│       ├── QueryInterface.java      # Интерфейс исполнения запроса
+│       ├── WhereCondition.java      # Условия WHERE/HAVING
+│       └── ExecutionResult.java     # Результат выполнения запроса
+├── Yadro/DataStruct/
+│   ├── DatabaseEngine.java          # Движок исполнения запросов
+│   ├── Column.java                  # Колонка с данными
+│   ├── Row.java                     # Строка результата
+│   ├── ColumnMetadata.java          # Описание колонки (тип, constraints)
+│   ├── DataType.java                # Типы данных
+│   ├── Constraints.java             # Виды ограничений
+│   └── Collate.java                 # Правила сравнения
+├── com/simpledb/
+│   ├── jdbc/                        # JDBC-драйвер
+│   │   ├── SimpleDriver.java
+│   │   ├── SimpleConnection.java
+│   │   ├── SimpleStatement.java
+│   │   ├── SimplePreparedStatement.java
+│   │   ├── SimpleResultSet.java
+│   │   ├── SimpleResultSetMetaData.java
+│   │   └── SimpleDatabaseMetaData.java
+│   └── server/
+│       ├── PostgresServer.java      # TCP-сервер (PostgreSQL wire protocol)
+│       └── ClientHandler.java       # Обработка подключений
+└── Main.java                        # Точка входа
+src/main/antlr/
+└── SQL.g4                           # Грамматика SQL для ANTLR4
+src/test/java/                       # Тесты (138 тестов, 3 уровня)
+```
 
-- .gradle/                  # Внутренние файлы Gradle
-- .idea/                    # Настройки IDE (IntelliJ IDEA)
-- build/                    # Сборка проекта
-- gradle/                   # Скрипты Gradle
-- gradlew, gradlew.bat      # Wrapper для Gradle
-- settings.gradle           # Конфигурация Gradle
-- build.gradle              # Сборка проекта
+## Исключения
 
-- src/main/java/            # Исходный код проекта
-    - Exceptions/           # Пользовательские исключения
-        - ...
-    - FileWork/             # Работа с файловым хранилищем
-        - JSON/             # Реализация JSON-хранилища
-            - JacksonConfig.java
-            - JsonFileStorage.java
-        - Metadata/         # Метаданные базы, таблиц и колонок
-        - FileManager.java  # Основной класс работы с БД и таблицами
-        - FileStorage.java  # Интерфейс работы с файловым хранилищем
-        - PathManager.java  # Генерация путей к файлам БД и таблиц
+| Класс | Ситуация |
+|---|---|
+| `NoFileException` | Файл или база данных не найдены |
+| `NoDataBaseException` | Обращение к несуществующей базе |
+| `NoTableException` | Обращение к несуществующей таблице |
+| `PermissionDeniedException` | Ошибка доступа к файлам |
+| `EmptyFileException` | Обнаружен пустой файл данных |
+| `AlreadyExistsException` | Конфликт имён при создании объекта |
+| `FileStorageException` | Ошибка чтения/записи хранилища |
+| `SerializationStorageException` | Ошибка сериализации данных |
+| `FileManagerException` | Ошибка на уровне файлового менеджера |
+| `FileTypeException` | Несовместимый тип файла |
 
-    - SqlParser/            # SQL-парсер и структура запросов
-        - Antlr/            # Генерированные ANTLR-файлы и парсер
-            - файлы грамматики и интерпретаторы
-        - QueriesStruct/    # Классы запросов и интерфейсы
-            - Queries.java
-            - QueryInterface.java
+## Тестирование
 
-    - DataStruct/           # Структуры данны
-    - Main.java             # Точка входа, консольный интерфейс
+Реализовано три уровня тестирования:
 
-- src/test/java/            # Тесты проекта
-    - ...
-
-- src/main/antlr/SQL.g4     # Файл грамматики SQL для ANTLR
-- data/                     # Данные для примера работы приложения
-    - ...
-- gen/   
-    - ...                   # Сгенерированные ANTLR-классы
-
-## Исключения 
-
-Для некоторых определённых ошибок написаны собственные классы исключений. На данном этапе обрабатываются исключения: 
-
-- Файл или база данных не найдены (NoFileException)
-- Ошибки доступа к файлам (PermissionDeniedException)
-- Пустые файлы (EmptyFileException)
-- Конфликты имен (AlreadyExistsException)
-- Ошибки сериализации и хранения (SerializationStorageException, FileStorageException)
-
-По мере дальнейшей разработки проекта исключения будут расширяться.
-
-## Тесты
-
-Для проверки работы приложения написаны тесты.
-На данный момент покрыты основные функции работы с файловым хранилищем.
-По мере дальнейшей разработки проекта тесты будут расширяться. 
+- **Модульные тесты** — компоненты в изоляции: `BinaryFileStorageTest`, `ColumnIndexTest`, `FileManagerTest`, `AntlrParserTest`, `DatabaseEngineTest` и другие
+- **Интеграционные тесты** — взаимодействие всех слоёв (`IntegrationTest`)
+- **E2E-тесты** — SQL-запросы выполняются против реального сервера, результаты сравниваются с эталонными ответами PostgreSQL 17
