@@ -353,7 +353,7 @@ public class Queries {
                 String gkey = groupByCols.stream()
                         .map(c -> {
                             String v = rowGet(row, c);
-                            return v != null ? v : " null ";
+                            return v != null ? v : "null";
                         })
                         .collect(Collectors.joining(""));
                 groups.computeIfAbsent(gkey, k -> new ArrayList<>()).add(row);
