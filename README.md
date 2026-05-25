@@ -15,21 +15,49 @@
 
 ## Сборка проекта
 
-```bash
-# Linux / macOS
-./gradlew shadowJar
+Перед сборкой проекта необходимо загрузить файлы репозитория:
 
-# Windows
-gradlew.bat shadowJar
+https://github.com/AnarCom/db-test
+
+
+```bash
+./gradlew shadowJar
 ```
 
 Собранный fat-jar появится в `build/libs/Simple-DB-Driver-1.0-SNAPSHOT.jar`.
 
+```bash
+java -jar "your_path\build\libs\Simple-DB-Driver-1.0-SNAPSHOT.jar" --init "your_path_2\db-test\schema.sql"
+```
+
+В данной строке:
+- `your_path` - ваш путь до папки build проекта
+- `your_path_2` - ваш путь до загруженного репозитория db-test
+
+
 ## Запуск тестов
+
+Запуск тестов проекта:
 
 ```bash
 ./gradlew test
 ```
+
+Запуск тестов, выбранных в качестве критерия успеха:
+
+**Перед запуском тестов необходимо собрать проект**. Затем: 
+
+```bash
+pip install psycopg2-binary
+```
+
+```bash
+cd "your-path\db-test" && python run_tests.py
+```
+
+Здесь: 
+`your_path` - ваш путь до загруженного репозитория db-test
+
 
 ## Функционал
 
